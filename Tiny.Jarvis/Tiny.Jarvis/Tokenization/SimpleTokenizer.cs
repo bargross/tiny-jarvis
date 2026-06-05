@@ -13,7 +13,7 @@ public class SimpleTokenizer: ITokenizer
     public int Bos { get; } // Beginning of Sequence token ID
     public int VocabSize { get; } // total number of unique tokens
 
-    public SimpleTokenizer(List<string> docs, int unknownTokenIdentifier = 0, int? vocabularySize = null)
+    public SimpleTokenizer(IEnumerable<string> docs, int unknownTokenIdentifier = -1, int? vocabularySize = null)
     {
         _unknownTokenIdentifier = unknownTokenIdentifier;
         _allWords = [.. docs.SelectMany(line => line.DetectDelimeterAndSplit()).Distinct().OrderBy(w => w).ToList()];

@@ -76,4 +76,68 @@ public static class Helpers
         Value scale = (ms + 1e-5).Pow(-0.5);
         return [.. x.Select(xi => xi * scale)];
     }
+
+    public static void ApplyTemperature(List<Value> logits, double temperature)
+    {
+        if (temperature != 1.0)
+        {
+            for (int i = 0; i < logits.Count; i++)
+                logits[i] /= temperature;
+        }
+    }
+
+    public static int SampleToken(List<Value> logits, double temperature, int topK, double topP)
+    {
+        // Apply temperature
+        ApplyTemperature(logits, temperature);
+
+        // Softmax
+        var probs = Softmax(logits);
+
+        // Top‑k
+        if (topK > 0 && topK < probs.Count)
+        {
+            var indices = probs.Select((p, idx) => (p, idx)).OrderByDescending(x => x.p).Take(topK).Select(x => x.idx).ToHashSet();
+            for (int i = 0; i < probs.Count; i++)
+                if (!indices.Contains(i))
+                    probs[i] = 0.0;
+
+            double sum = probs.Sum(x => x.Data);
+            for (int i = 0; i < probs.Count; i++)
+                probs[i] /= sum;
+        }
+
+        // Top‑p
+        if (topP < 1.0f && topP > 0)
+        {
+            var indexed = probs.Select((p, idx) => (p, idx)).OrderByDescending(x => x.p).ToList();
+            double cummulitative = 0;
+            var keep = new HashSet<int>();
+            foreach (var item in indexed)
+            {
+                cummulitative += item.p.Data;
+                keep.Add(item.idx);
+                if (cummulitative >= topP) break;
+            }
+            for (int i = 0; i < probs.Count; i++)
+                if (!keep.Contains(i))
+                    probs[i] = 0;
+
+            var sum = probs.Select(probability => probability.Data).Sum();
+            for (int i = 0; i < probs.Count; i++)
+                probs[i] /= sum;
+        }
+
+        // Sample
+        double rand = (float)new Random().NextDouble();
+        double cum = 0;
+        for (int i = 0; i < probs.Count; i++)
+        {
+            cum += probs[i].Data;
+            if (rand < cum)
+                return i;
+        }
+
+        return probs.Count - 1;
+    }
 }

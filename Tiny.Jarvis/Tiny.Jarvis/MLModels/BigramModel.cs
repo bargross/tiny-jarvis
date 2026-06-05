@@ -6,7 +6,7 @@ namespace Tiny.Jarvis.MLModels;
 internal class BigramModel
 {
     private readonly double[,] _nextTokenProbs;
-    private readonly SmartTokenGenerator _smartTokenGenerator;
+    private readonly SmartTokenizerGenerator _smartTokenGenerator;
 
     public BigramModel(List<string> docs, SimpleTokenizer tokenizer)
     {
@@ -18,7 +18,7 @@ internal class BigramModel
         // Convert counts to probabilities
         _nextTokenProbs = ConvertToProbabilities(counts);
 
-        _smartTokenGenerator = new SmartTokenGenerator(docs);
+        _smartTokenGenerator = new SmartTokenizerGenerator(docs);
     }
 
     internal int[,] CountTransitions(List<string> docs)

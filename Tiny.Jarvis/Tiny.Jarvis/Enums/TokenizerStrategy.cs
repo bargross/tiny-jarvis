@@ -1,6 +1,6 @@
 ﻿namespace Tiny.Jarvis.Enums
 {
-    internal enum TokenizerStrategy
+    public enum TokenizerStrategy
     {
         Simple = 0,
         BytePair = 1,

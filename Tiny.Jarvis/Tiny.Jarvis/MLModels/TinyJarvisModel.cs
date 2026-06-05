@@ -79,26 +79,26 @@ public class TinyJarvisModel
         var tokenEmbedding = TokenEmbeddings.GetRow(tokenId);
         var positionEmbedding = PositionEmbeddings.GetRow(posId);
 
-        var x = new List<Value>();
+        var probabilities = new List<Value>();
         for (int i = 0; i < _embeddingSize; i++)
         {
-            x.Add(tokenEmbedding[i] + positionEmbedding[i]);
+            probabilities.Add(tokenEmbedding[i] + positionEmbedding[i]);
         }
 
         // Initial RmsNorm: stabilises the embeddings before entering the first block.
         // This isn't standard in all transformer implementations, but gives the
         // residual stream a stable starting magnitude.
-        x = Helpers.RmsNorm(x);
+        probabilities = Helpers.RmsNorm(probabilities);
 
         for (int layerIndex = 0; layerIndex < _layerCount; layerIndex++)
         {
-            x = AttentionBlock(x, layerIndex, keys, values);
-            x = MlpBlock(x, layerIndex);
+            probabilities = AttentionBlock(probabilities, layerIndex, keys, values);
+            probabilities = MlpBlock(probabilities, layerIndex);
         }
 
         // Note: production transformers typically apply a final RmsNorm here
         // before the output projection. We omit it for simplicity.
-        return Helpers.Linear(x, OutputProjection);
+        return Helpers.Linear(probabilities, OutputProjection);
     }
 
     // Attention wrapped with pre-norm and a residual connection.
@@ -188,6 +188,72 @@ public class TinyJarvisModel
         }
 
         return x;
+    }
+
+    /// <summary>
+    /// Generates new token IDs autoregressively, given a starting prompt.
+    /// </summary>
+    /// <param name="inputIds">Token IDs of the prompt (from tokenizer.Encode).</param>
+    /// <param name="maxNewTokens">Maximum number of tokens to generate.</param>
+    /// <param name="temperature">>1 = more random, <1 = more deterministic.</param>
+    /// <param name="topK">If >0, only sample from the K most likely tokens.</param>
+    /// <param name="topP">Nucleus sampling: keep smallest set of tokens whose cumulative prob >= topP.</param>
+    /// <param name="endTokenId">If provided, stop generation when this token is produced.</param>
+    /// <returns>List of newly generated token IDs (excluding the original prompt).</returns>
+    public IReadOnlyList<int> Generate(
+        IReadOnlyList<int> inputIds,
+        int maxNewTokens,
+        double temperature = 1.0,
+        int topK = 0,
+        double topP = 1.0,
+        int? endTokenId = null)
+    {
+        // Create fresh KV caches: one list per layer, each will store keys/values for every position
+        var keys = CreateKvCache();   // List<List<Value>>[layerCount]
+        var values = CreateKvCache();
+
+        // allIds will hold the full sequence (prompt + generated)
+        List<int> allIds = new List<int>(inputIds);
+
+        // This will store the logits returned by the last Forward call.
+        // After processing the final prompt token, these logits represent predictions for the first new token.
+        List<Value> lastLogits = null;
+
+        // ----- Feed the entire prompt (one token at a time) to fill the KV caches -----
+        for (int pos = 0; pos < inputIds.Count; pos++)
+        {
+            int tokenId = inputIds[pos];
+            // Forward returns logits for the *next* token (position pos+1)
+            lastLogits = Forward(tokenId, pos, keys, values);
+            // We ignore the logits from intermediate steps; only the final lastLogits matters.
+        }
+
+        // currentPos tracks the index of the token we will feed next.
+        // After the prompt, the next position to fill is at index inputIds.Count.
+        int currentPos = inputIds.Count;
+
+        // ----- Generate new tokens -----
+        for (int step = 0; step < maxNewTokens; step++)
+        {
+            // Sample the next token ID using the configured sampling strategy
+            int nextToken = Helpers.SampleToken(lastLogits, temperature, topK, topP);
+
+            // Append the new token to our full sequence
+            allIds.Add(nextToken);
+
+            // If we hit the end-of-sequence token (if provided), stop generation
+            if (endTokenId.HasValue && nextToken == endTokenId.Value)
+                break;
+
+            // Feed the newly generated token to get logits for the *following* token.
+            // Position is currentPos because that's the index this token occupies.
+            // The returned logits will predict the token at currentPos+1.
+            lastLogits = Forward(nextToken, currentPos, keys, values);
+            currentPos++;
+        }
+
+        // Return only the newly generated tokens (exclude the original prompt)
+        return allIds.Skip(inputIds.Count).ToList();
     }
 
     /// <summary>Creates a fresh KV cache for a new document/sample.</summary>

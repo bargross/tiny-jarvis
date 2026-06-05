@@ -2,7 +2,7 @@
 {
     internal class WordPieceTrainer
     {
-        public HashSet<string> Train(List<string> trainingCorpus, int targetVocabularySize)
+        public HashSet<string> Train(IEnumerable<string> trainingCorpus, int targetVocabularySize)
         {
             // Start with all characters as initial vocabulary
             var vocabulary = trainingCorpus
@@ -23,7 +23,7 @@
             return vocabulary;
         }
 
-        private string FindBestMerge(List<string> trainingCorpus, HashSet<string> currentVocabulary)
+        private string FindBestMerge(IEnumerable<string> trainingCorpus, HashSet<string> currentVocabulary)
         {
             // Generate all possible merges from existing vocabulary
             var possibleMerges = from first in currentVocabulary
@@ -46,7 +46,7 @@
             return bestMerge;
         }
 
-        private double ComputeLikelihoodIncrease(List<string> corpus, HashSet<string> vocabulary, string candidateMerge)
+        private double ComputeLikelihoodIncrease(IEnumerable<string> corpus, HashSet<string> vocabulary, string candidateMerge)
         {
             // Simplified: measure how many new word segmentations become possible
             // Real WordPiece uses a proper probabilistic model

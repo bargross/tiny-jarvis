@@ -63,5 +63,7 @@ public class Value(double data, Value[]? inputs = null, double[]? localGrads = n
 
     public static Value operator /(Value a, double b) => a * Math.Pow(b, -1);
 
+    public static implicit operator Value(double d) => new(d, [], []);
+
     public override string ToString() => $"Value(data={Data})";
 }

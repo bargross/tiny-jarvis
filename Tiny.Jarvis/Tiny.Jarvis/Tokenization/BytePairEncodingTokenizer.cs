@@ -4,41 +4,46 @@ namespace Tiny.Jarvis.Tokenization
 {
     public class BytePairEncodingTokenizer: ITokenizer
     {
-        private readonly Dictionary<string, int> _tokenToIdentifier;
-        private readonly Dictionary<int, string> _identifierToToken;
+        private readonly Dictionary<string, int> _identifierToToken;
+        private readonly Dictionary<int, string> _tokenToIdentifier;
         private readonly List<(string Left, string Right)> _mergeRules;
         private readonly int _unknownTokenIdentifier;
         private readonly string _unknownTokenString = "[UNK]";
        
         public int VocabSize => _tokenToIdentifier.Count;
+        public int Bos { get; } // Beginning of Sequence token ID
 
-        public BytePairEncodingTokenizer(List<string> docs, int unknownTokenIdentifier, int numberOfMerges = 5)
+        public BytePairEncodingTokenizer(IEnumerable<string> docs, int unknownTokenIdentifier = -1, int numberOfMerges = 5)
         {
-            var tokenizerTrainingData = docs.Select(text => new BytePairEncodingTrainer().Train(text, numberOfMerges));
+            var tokenizerTrainingData = docs.Select(text => new BytePairEncodingTrainer().Train(text, numberOfMerges)); // hard to track the token to identifier mapping across multiple documents, so we will merge them together in the next iteration
 
-            _tokenToIdentifier = tokenizerTrainingData.SelectMany(kv => kv.TokenToIdentifier).ToDictionary();
+            _tokenToIdentifier = tokenizerTrainingData.SelectMany(kv => kv.IdentifierToToken)
+                .GroupBy(kvp => kvp.Key)
+                .ToDictionary(kvp => kvp.First().Value, kvp => kvp.First().Key);
+
+            _identifierToToken = _tokenToIdentifier.ToDictionary(kvp => kvp.Value, kvp => kvp.Key);
             _mergeRules = tokenizerTrainingData.SelectMany(kv => kv.MergeRules).ToList();
             _unknownTokenIdentifier = unknownTokenIdentifier;
-            _identifierToToken = _tokenToIdentifier.ToDictionary(kvp => kvp.Value, kvp => kvp.Key);
+            Bos = _tokenToIdentifier.Count;
 
             // Ensure unknown token exists in reverse map
-            if (!_identifierToToken.ContainsKey(unknownTokenIdentifier))
-                _identifierToToken[unknownTokenIdentifier] = _unknownTokenString;
+            if (!_tokenToIdentifier.ContainsKey(unknownTokenIdentifier))
+                _tokenToIdentifier[unknownTokenIdentifier] = _unknownTokenString;
         }
 
         public BytePairEncodingTokenizer(
-            Dictionary<string, int> tokenToIdentifier,
+            Dictionary<string, int> identifierToToken,
             List<(string Left, string Right)> mergeRules,
             int unknownTokenIdentifier)
         {
-            _tokenToIdentifier = tokenToIdentifier;
+            _tokenToIdentifier = identifierToToken.ToDictionary(kvp => kvp.Value, kvp => kvp.Key);
             _mergeRules = mergeRules;
             _unknownTokenIdentifier = unknownTokenIdentifier;
-            _identifierToToken = tokenToIdentifier.ToDictionary(kvp => kvp.Value, kvp => kvp.Key);
+            _identifierToToken = identifierToToken;
 
             // Ensure unknown token exists in reverse map
-            if (!_identifierToToken.ContainsKey(unknownTokenIdentifier))
-                _identifierToToken[unknownTokenIdentifier] = _unknownTokenString;
+            if (!_tokenToIdentifier.ContainsKey(unknownTokenIdentifier))
+                _tokenToIdentifier[unknownTokenIdentifier] = _unknownTokenString;
         }
 
         public IReadOnlyList<int> Encode(string text)
@@ -46,14 +51,14 @@ namespace Tiny.Jarvis.Tokenization
             return text
                 .Split(' ')
                 .SelectMany(word => TokenizeWord(word))
-                .Select(token => _tokenToIdentifier.GetValueOrDefault(token, _unknownTokenIdentifier))
+                .Select(token => _identifierToToken.GetValueOrDefault(token, _unknownTokenIdentifier))
                 .ToList();
         }
 
         public string Decode(IReadOnlyList<int> identifiers)
         {
             var tokens = identifiers
-                .Select(id => _identifierToToken.GetValueOrDefault(id, _unknownTokenString))
+                .Select(id => _tokenToIdentifier.GetValueOrDefault(id, _unknownTokenString))
                 .ToList();
 
             // BPE typically uses a special token ("_") for spaces; here we assume spaces are preserved
@@ -84,6 +89,32 @@ namespace Tiny.Jarvis.Tokenization
                 mergeRule.Left + mergeRule.Right
             );
             return mergedSequence.Split(delimiter).ToList();
+        }
+
+        private Dictionary<int, string> AdjustTokens(IEnumerable<KeyValuePair<int, string>> tokensToIdentifiers)
+        {
+            var adjustedTokens = new Dictionary<int, string>();
+            for (var index = 0; index < tokensToIdentifiers.Count(); index++)
+            {
+                var kvp = tokensToIdentifiers.ElementAt(index);
+                if (kvp.Key != index)
+                {
+                    var kv = new KeyValuePair<int, string>(index, kvp.Value);
+                }
+
+                int id = kvp.Key;
+                string token = kvp.Value;
+                // Ensure the unknown token is included in the adjusted tokens
+                if (token == _unknownTokenString)
+                {
+                    adjustedTokens[_unknownTokenIdentifier] = _unknownTokenString;
+                }
+                else
+                {
+                    adjustedTokens[id] = token;
+                }
+            }
+            return adjustedTokens;
         }
     }
 }
