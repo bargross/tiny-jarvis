@@ -1,2 +1,2 @@
 # TinyJarvis
-A project to creating my own small LLM for learning purposes.
+A project to create my own small LLM for learning purposes.
