@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "Tiny.Jarvis": {
+      "commandName": "Project",
+      "commandLineArgs": "full"
+    }
+  }
+}
