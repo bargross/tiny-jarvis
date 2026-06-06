@@ -4,21 +4,17 @@ namespace Tiny.Jarvis.Message.Prompt
 {
     public static class ChatInput
     {
-        public static ChatMessage GetUserInput(List<ChatMessage> history)
+        public static ChatMessage GetUserInput()
         {
             var userResponse = Console.ReadLine();
 
             if (string.IsNullOrWhiteSpace(userResponse))
             {
                 Console.WriteLine("Input cannot be empty. Please enter a valid message.");
-                return GetUserInput(history);
+                return GetUserInput();
             }
 
-            var message = new ChatMessage { Role = "user", Content = userResponse, CreatedAt = DateTime.UtcNow };
-
-            history.Add(message);
-
-            return message;
+            return new ChatMessage { Role = "user", Content = userResponse, CreatedAt = DateTime.UtcNow };
         }
     }
 }

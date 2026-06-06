@@ -9,13 +9,15 @@ namespace Tiny.Jarvis.Tokenization
         private readonly Dictionary<string, int> _identifierToToken;
 
         private readonly int _unknownTokenIdentifier;
-        private const string UnknownToken = "[UNK]";
-        private const string BosToken = "[BOS]";
-        private const double UnknownTokenLogProbability = -100.0;
+        private const string _unknownToken = "[UNK]";
+        private const string _bosToken = "[BOS]";
+        private const string _endOfSequenceToken = "[EOS]";
+        private const double _unknownTokenLogProbability = -100.0;
         private readonly int _vocabularySize;
 
         public int VocabSize => _vocabularySize;
-        public int Bos { get; } // Beginning of Sequence token ID
+        public int BOS { get; } // Beginning of Sequence token ID
+        public int EOS { get; } // End of Sequence token ID
 
         public UnigramTokenizer(IEnumerable<string> docs, int targetVocabularySize = 20)
         {
@@ -25,15 +27,19 @@ namespace Tiny.Jarvis.Tokenization
             // Add special tokens to the probability map (assign small log probs)
             const double defaultLogProb = -15.0;  // low probability
 
-            if (!tokenLogProbabilities.ContainsKey(UnknownToken))
-                tokenLogProbabilities[UnknownToken] = defaultLogProb;
-            if (!tokenLogProbabilities.ContainsKey(BosToken))
-                tokenLogProbabilities[BosToken] = defaultLogProb;
+            if (!tokenLogProbabilities.ContainsKey(_unknownToken))
+                tokenLogProbabilities[_unknownToken] = defaultLogProb;
+
+            if (!tokenLogProbabilities.ContainsKey(_bosToken))
+                tokenLogProbabilities[_bosToken] = defaultLogProb;
+
+            if (!tokenLogProbabilities.ContainsKey(_endOfSequenceToken))
+                tokenLogProbabilities[_endOfSequenceToken] = defaultLogProb;
 
             // Build deterministic list of all tokens (special tokens first, then sorted)
-            var allTokens = new List<string> { UnknownToken, BosToken };
+            var allTokens = new List<string> { _unknownToken, _bosToken, _endOfSequenceToken };
             allTokens.AddRange(tokenLogProbabilities.Keys
-                .Where(t => t != UnknownToken && t != BosToken)
+                .Where(t => t != _unknownToken && t != _bosToken && t != _endOfSequenceToken)
                 .OrderBy(t => t));
 
             // Assign consecutive IDs (UNK=0, BOS=1, then rest)
@@ -46,10 +52,11 @@ namespace Tiny.Jarvis.Tokenization
             _tokenLogProbabilities = tokenLogProbabilities;
             _identifierToToken = identifierToToken;
             _tokenToIdentifier = tokenToIdentifier;
-            _unknownTokenIdentifier = identifierToToken[UnknownToken];
+            _unknownTokenIdentifier = identifierToToken[_unknownToken];
             _vocabularySize = identifierToToken.Count;
 
-            Bos = identifierToToken[BosToken];
+            BOS = identifierToToken[_bosToken];
+            EOS = identifierToToken[_endOfSequenceToken];
         }
 
         public IReadOnlyList<int> Encode(string text)
@@ -64,7 +71,7 @@ namespace Tiny.Jarvis.Tokenization
         public string Decode(IReadOnlyList<int> identifiers)
         {
             var tokens = identifiers
-                .Select(id => _tokenToIdentifier.GetValueOrDefault(id, UnknownToken))
+                .Select(id => _tokenToIdentifier.GetValueOrDefault(id, _unknownToken))
                 .ToList();
 
             // Unigram typically concatenates tokens; spaces are either separate tokens or implied.
@@ -99,7 +106,7 @@ namespace Tiny.Jarvis.Tokenization
 
         private double GetLogProbability(string token)
         {
-            return _tokenLogProbabilities.GetValueOrDefault(token, UnknownTokenLogProbability);
+            return _tokenLogProbabilities.GetValueOrDefault(token, _unknownTokenLogProbability);
         }
     }
 }

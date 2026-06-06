@@ -3,7 +3,8 @@
     public interface ITokenizer
     {
         int VocabSize { get; }
-        int Bos { get; }
+        int BOS { get; }
+        int EOS { get; }
 
         IReadOnlyList<int> Encode(string text);
         string Decode(IReadOnlyList<int> identifiers);

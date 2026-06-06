@@ -16,6 +16,7 @@ public class TinyJarvisModel
     private readonly int _layerCount;
     private readonly int _headDimension;
     private readonly int _vocabularySize;
+    private readonly int _bosToken;
 
     private Value[][] TokenEmbeddings => _stateDict["wte"];
     private Value[][] PositionEmbeddings => _stateDict["wpe"];
@@ -31,6 +32,7 @@ public class TinyJarvisModel
         int headCount,
         int layerCount,
         int maxSequenceLength,
+        int bosToken,
         Random random
     )
     {
@@ -39,6 +41,7 @@ public class TinyJarvisModel
         _layerCount = layerCount;
         _headDimension = embeddingSize / headCount;
         _vocabularySize = vocabSize;
+        _bosToken = bosToken;
 
         _stateDict = new Dictionary<string, Value[][]>
         {
@@ -233,6 +236,11 @@ public class TinyJarvisModel
         // This will store the logits returned by the last Forward call.
         // After processing the final prompt token, these logits represent predictions for the first new token.
         List<Value>? lastLogits = null;
+
+        if (prependBos && (tokens.Count == 0 || tokens[0] != _bosToken))
+        {
+            tokens = new List<int> {  }.Concat(tokens).ToList();
+        }
 
         // Any name longer than maxSequenceLength - 1 is silently truncated here.
         int tokenCount = Math.Min(MaxSequenceLength - 1, tokens.Count);

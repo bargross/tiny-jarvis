@@ -9,13 +9,15 @@ namespace Tiny.Jarvis.Tokenization
         private readonly Dictionary<string, int> _identifierToToken;
 
         private readonly int _unknownTokenIdentifier;
-        private const string UnknownToken = "[UNK]";
-        private const string BosToken = "[BOS]";
-        private const string SubwordPrefix = "##";
+        private const string _unknownToken = "[UNK]";
+        private const string _bosToken = "[BOS]";
+        private const string _endOfSequenceToken = "[EOS]";
+        private const string _subwordPrefix = "##";
         private readonly int _vocabularySize;
 
         public int VocabSize => _vocabularySize;
-        public int Bos { get; } // Beginning of Sequence token ID
+        public int BOS { get; } // Beginning of Sequence token ID
+        public int EOS { get; } // End of Sequence token ID
 
         public WordPieceTokenizer(IEnumerable<string> docs, int targetVocabularySize = 20)
         {
@@ -23,7 +25,7 @@ namespace Tiny.Jarvis.Tokenization
             var trainedTokens = new WordPieceTrainer().Train(docs, targetVocabularySize);
 
             // Prepare a set of all tokens (use a HashSet to avoid duplicates)
-            var allTokensSet = new HashSet<string> { UnknownToken, BosToken };
+            var allTokensSet = new HashSet<string> { _unknownToken, _bosToken, _endOfSequenceToken };
             foreach (var token in trainedTokens)
                 allTokensSet.Add(token);   // duplicates (like "[UNK]") are ignored
 
@@ -40,8 +42,9 @@ namespace Tiny.Jarvis.Tokenization
             _identifierToToken = tokenToId;                                 // string → int
             _tokenToIdentifier = tokenToId.ToDictionary(kvp => kvp.Value, kvp => kvp.Key); // int → string
 
-            _unknownTokenIdentifier = _identifierToToken[UnknownToken];
-            Bos = _identifierToToken[BosToken];
+            _unknownTokenIdentifier = _identifierToToken[_unknownToken];
+            BOS = _identifierToToken[_bosToken];
+            EOS = _identifierToToken[_endOfSequenceToken];
 
             _vocabularySize = _tokenToIdentifier.Count;
         }
@@ -58,19 +61,19 @@ namespace Tiny.Jarvis.Tokenization
         public string Decode(IReadOnlyList<int> identifiers)
         {
             var tokens = identifiers
-                .Select(id => _tokenToIdentifier.GetValueOrDefault(id, UnknownToken))
+                .Select(id => _tokenToIdentifier.GetValueOrDefault(id, _unknownToken))
                 .ToList();
 
             // WordPiece uses "##" to indicate that a token is attached to the previous one.
             var result = new List<string>();
             foreach (var token in tokens)
             {
-                if (token.StartsWith(SubwordPrefix))
+                if (token.StartsWith(_subwordPrefix))
                 {
                     if (result.Any())
-                        result[result.Count - 1] += token.Substring(SubwordPrefix.Length);
+                        result[result.Count - 1] += token.Substring(_subwordPrefix.Length);
                     else
-                        result.Add(token.Substring(SubwordPrefix.Length));
+                        result.Add(token.Substring(_subwordPrefix.Length));
                 }
                 else
                 {
@@ -100,7 +103,7 @@ namespace Tiny.Jarvis.Tokenization
             else
             {
                 // No token matches – use unknown token and advance one character
-                yield return UnknownToken;
+                yield return _unknownToken;
                 foreach (var token in SegmentWordByLongestMatch(remainingText.Substring(1)))
                     yield return token;
             }

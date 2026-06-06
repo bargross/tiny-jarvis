@@ -36,6 +36,7 @@ public static class TinyJarvisModelTrainer
             headCount,
             layerCount,
             maxSequenceLength,
+            tokenizer.BOS, // give it the bos token to use later when using Generate
             random
         );
 
@@ -61,11 +62,11 @@ public static class TinyJarvisModelTrainer
         for (int step = 0; step < totalNumberOfSteps; step++)
         {
             var doc = docs.ElementAt(step % docs.Count());
-            var tokens = new List<int> { tokenizer.Bos };
+            var tokens = new List<int> { tokenizer.BOS };
 
             tokens.AddRange(tokenizer.Encode(doc));
 
-            tokens.Add(tokenizer.Bos); // mark the end of the sequence
+            tokens.Add(tokenizer.EOS); // mark the end of the sequence
 
             // Any name longer than maxSequenceLength - 1 is silently truncated here.
             int tokenCount = Math.Min(maxSequenceLength - 1, tokens.Count);
@@ -129,19 +130,5 @@ public static class TinyJarvisModelTrainer
         }
 
         return (model, tokenizer);
-    }
-
-    private static int RoundToNearestUnit(int n, int k)
-    {
-        if (n == 0) return 0;
-
-        int d = (int)Math.Floor(Math.Log10(Math.Abs(n))) + 1;
-
-        if (k >= d) return n;
-
-        int divisor = (int)Math.Pow(10, d - k);
-        int leading = n / divisor;
-
-        return leading * divisor;
     }
 }

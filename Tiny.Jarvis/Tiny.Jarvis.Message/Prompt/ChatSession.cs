@@ -24,7 +24,7 @@ namespace Tiny.Jarvis.Message.Prompt
             while (_running)
             {
                 Console.Write("You: ");
-                var inputMessage = ChatInput.GetUserInput(_history);
+                var inputMessage = ChatInput.GetUserInput();
 
                 // Termination check
                 if (string.IsNullOrEmpty(inputMessage.Content) ||
@@ -34,13 +34,15 @@ namespace Tiny.Jarvis.Message.Prompt
                     _running = ChatOutput.ShouldEnd(_history);
                 }
 
+                _history.Add(inputMessage);
+
                 // Build prompt with history
-                var prompt = string.Join("\n", _history.Select(x => x.ToString())) + "\nassistant:";
+                var prompt = string.Join("\n", _history.Select(x => x.ToString())) + "\nassistant: ";
 
                 // Get encoded sequence with Bos at the beginning
-                var inputIds = AddBosTokenToList(_tokenizer.Encode(prompt));
+                var inputIds = _tokenizer.Encode(prompt);
 
-                Console.WriteLine($"BOS token: {_tokenizer.Bos}");
+                Console.WriteLine($"BOS token: {_tokenizer.BOS}");
                 Console.WriteLine($"tokens before Generate is called: {string.Join(",", inputIds)}");
 
                 var responseTokens = _model.Generate(inputIds, maxNewTokens: 100, temperature: 0.8, topK: 50, topP: 0.95);
@@ -48,6 +50,7 @@ namespace Tiny.Jarvis.Message.Prompt
                 Console.WriteLine($"Generated response tokens: {string.Join(",", responseTokens)}");
                 var response = _tokenizer.Decode(responseTokens);
 
+                Console.WriteLine($"Generated response: {response}");
                 // Clean and display
                 response = CleanResponse(response);
                 
@@ -65,15 +68,6 @@ namespace Tiny.Jarvis.Message.Prompt
             if (idx >= 0) response = response.Substring(0, idx);
 
             return response.Trim();
-        }
-
-        private IReadOnlyList<int> AddBosTokenToList(IReadOnlyList<int> tokens)
-        {
-            var tokenswithBosTokenAtStartOfSequence = new List<int> { _tokenizer.Bos };
-
-            tokenswithBosTokenAtStartOfSequence.AddRange(tokens);
-
-            return tokenswithBosTokenAtStartOfSequence;
         }
     }
 }

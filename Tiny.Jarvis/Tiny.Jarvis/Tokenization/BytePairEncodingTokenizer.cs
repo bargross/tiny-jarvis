@@ -10,11 +10,14 @@ namespace Tiny.Jarvis.Tokenization
         private readonly int _unknownTokenIdentifier;
         private readonly string _unknownToken = "[UNK]";
         private readonly string _bosToken = "[BOS]";
+        private readonly string _endOfSequenceToken = "[EOS]";
+
 
         private readonly int _vocabularySize;
 
         public int VocabSize => _vocabularySize;
-        public int Bos { get; } // Beginning of Sequence token ID
+        public int BOS { get; } // Beginning of Sequence token ID
+        public int EOS { get; } // End of Sequence token ID
 
         public BytePairEncodingTokenizer(IEnumerable<string> docs, int unknownTokenIdentifier = -1, int numberOfMerges = 5)
         {
@@ -32,16 +35,18 @@ namespace Tiny.Jarvis.Tokenization
 
             allTokensSet.Add(_unknownToken);
             allTokensSet.Add(_bosToken);
+            allTokensSet.Add(_endOfSequenceToken);
 
             // Assign consecutive IDs, optionally forcing fixed IDs for special tokens like [UNK] and [BOS]
             var identifierToToken = new Dictionary<string, int>();
             identifierToToken[_unknownToken] = 0;
             identifierToToken[_bosToken] = 1;
+            identifierToToken[_endOfSequenceToken] = 2;
 
-            int nextId = 2;
+            int nextId = 3;
             foreach (var token in allTokensSet.OrderBy(t => t))
             {
-                if (token == _unknownToken || token == _bosToken)
+                if (token == _unknownToken || token == _bosToken || token == _endOfSequenceToken)
                     continue;
 
                 identifierToToken[token] = nextId++;
