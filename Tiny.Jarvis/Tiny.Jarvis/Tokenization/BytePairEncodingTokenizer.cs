@@ -9,8 +9,9 @@ namespace Tiny.Jarvis.Tokenization
         private readonly List<(string Left, string Right)> _mergeRules;
         private readonly int _unknownTokenIdentifier;
         private readonly string _unknownTokenString = "[UNK]";
-       
-        public int VocabSize => _tokenToIdentifier.Count;
+        private readonly int _vocabularySize;
+
+        public int VocabSize => _vocabularySize;
         public int Bos { get; } // Beginning of Sequence token ID
 
         public BytePairEncodingTokenizer(IEnumerable<string> docs, int unknownTokenIdentifier = -1, int numberOfMerges = 5)
@@ -23,12 +24,15 @@ namespace Tiny.Jarvis.Tokenization
 
             _identifierToToken = _tokenToIdentifier.ToDictionary(kvp => kvp.Value, kvp => kvp.Key);
             _mergeRules = tokenizerTrainingData.SelectMany(kv => kv.MergeRules).ToList();
-            _unknownTokenIdentifier = unknownTokenIdentifier;
-            Bos = _tokenToIdentifier.Count;
 
             // Ensure unknown token exists in reverse map
             if (!_tokenToIdentifier.ContainsKey(unknownTokenIdentifier))
                 _tokenToIdentifier[unknownTokenIdentifier] = _unknownTokenString;
+
+            if (_tokenToIdentifier.Count > _vocabularySize)
+                _vocabularySize = _tokenToIdentifier.Count;
+
+            Bos = _vocabularySize - 1; // Add the Bos token at the beginning and end of the sequence.
         }
 
         public BytePairEncodingTokenizer(

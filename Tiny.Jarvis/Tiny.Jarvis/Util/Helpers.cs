@@ -98,12 +98,12 @@ public static class Helpers
         // Top‑k
         if (topK > 0 && topK < probs.Count)
         {
-            var indices = probs.Select((p, idx) => (p, idx)).OrderByDescending(x => x.p).Take(topK).Select(x => x.idx).ToHashSet();
+            var indices = probs.Select((p, idx) => (p, idx)).OrderByDescending(x => x.p.Data).Take(topK).Select(x => x.idx).ToHashSet();
             for (int i = 0; i < probs.Count; i++)
                 if (!indices.Contains(i))
                     probs[i] = 0.0;
 
-            double sum = probs.Sum(x => x.Data);
+            var sum = probs.Sum(x => x.Data);
             for (int i = 0; i < probs.Count; i++)
                 probs[i] /= sum;
         }
@@ -111,13 +111,14 @@ public static class Helpers
         // Top‑p
         if (topP < 1.0f && topP > 0)
         {
-            var indexed = probs.Select((p, idx) => (p, idx)).OrderByDescending(x => x.p).ToList();
-            double cummulitative = 0;
+            var indexed = probs.Select((p, idx) => (p, idx)).OrderByDescending(x => x.p.Data).ToList();
+            var cummulitative = 0.0;
             var keep = new HashSet<int>();
             foreach (var item in indexed)
             {
                 cummulitative += item.p.Data;
                 keep.Add(item.idx);
+
                 if (cummulitative >= topP) break;
             }
             for (int i = 0; i < probs.Count; i++)
@@ -130,8 +131,8 @@ public static class Helpers
         }
 
         // Sample
-        double rand = (float)new Random().NextDouble();
-        double cum = 0;
+        var rand = new Random().NextDouble();
+        var cum = 0.0;
         for (int i = 0; i < probs.Count; i++)
         {
             cum += probs[i].Data;

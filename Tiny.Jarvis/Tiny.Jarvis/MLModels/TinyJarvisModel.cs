@@ -22,6 +22,7 @@ public class TinyJarvisModel
 
     /// <summary>All trainable parameters, flattened into a single list for the optimiser.</summary>
     public List<Value> Parameters { get; }
+    public int MaxSequenceLength { get; }
 
     public TinyJarvisModel(
         int vocabSize,
@@ -62,6 +63,8 @@ public class TinyJarvisModel
             );
         }
 
+        MaxSequenceLength = maxSequenceLength;
+
         // Dictionary<TKey,TValue> enumeration order is not guaranteed by the spec.
         // In .NET Core+ it preserves insertion order in practice, so Adam's momentum[]/squaredGradAvg[]
         // line up across runs - but if that implementation detail ever changes, switch
@@ -76,11 +79,16 @@ public class TinyJarvisModel
         List<List<Value>>[] values
     )
     {
-        if (tokenId < 0 || tokenId > TokenEmbeddings.Length)
+        // validate ids
+        if (tokenId < 0 || tokenId >= TokenEmbeddings.Length)
             throw new ArgumentOutOfRangeException(nameof(tokenId), $"tokenId {tokenId} is out of bounds for vocab size {TokenEmbeddings.Length}");
 
-        var tokenEmbedding = TokenEmbeddings.GetRow(tokenId - 1); // problems with tokenId being outside the bounds
-        var positionEmbedding = PositionEmbeddings.GetRow(posId); // problems with posId being outside the bounds
+        if (posId < 0 || posId >= PositionEmbeddings.Length)
+            throw new ArgumentOutOfRangeException(nameof(posId), $"posId {posId} is out of bounds for position embedding size {PositionEmbeddings.Length}");
+
+        // use ids directly (remove the -1 adjustment)
+        var tokenEmbedding = TokenEmbeddings.GetRow(tokenId);
+        var positionEmbedding = PositionEmbeddings.GetRow(posId);
 
         var probabilities = new List<Value>();
         for (int i = 0; i < _embeddingSize; i++)
@@ -205,7 +213,7 @@ public class TinyJarvisModel
     /// <param name="endTokenId">If provided, stop generation when this token is produced.</param>
     /// <returns>List of newly generated token IDs (excluding the original prompt).</returns>
     public IReadOnlyList<int> Generate(
-        IReadOnlyList<int> inputIds,
+        IReadOnlyList<int> tokens,
         int maxNewTokens,
         double temperature = 1.0,
         int topK = 0,
@@ -217,25 +225,28 @@ public class TinyJarvisModel
         var values = CreateKvCache();
 
         // allIds will hold the full sequence (prompt + generated)
-        var allIds = new List<int>(inputIds);
+        var allIds = new List<int>(tokens);
 
         // This will store the logits returned by the last Forward call.
         // After processing the final prompt token, these logits represent predictions for the first new token.
         List<Value>? lastLogits = null;
 
+        // Any name longer than maxSequenceLength - 1 is silently truncated here.
+        int tokenCount = Math.Min(MaxSequenceLength - 1, Math.Max(0, tokens.Count - 1));
+
         // ----- Feed the entire prompt (one token at a time) to fill the KV caches -----
-        for (int pos = 0; pos < inputIds.Count; pos++)
+        for (int posId = 0; posId < tokenCount; posId++)
         {
-            int tokenId = inputIds[pos];
+            int tokenId = tokens[posId];
 
             // Forward returns logits for the *next* token (position pos+1)
-            lastLogits = Forward(tokenId, pos, keys, values);
+            lastLogits = Forward(tokenId, posId, keys, values);
             // We ignore the logits from intermediate steps; only the final lastLogits matters.
         }
 
         // currentPos tracks the index of the token we will feed next.
         // After the prompt, the next position to fill is at index inputIds.Count.
-        int currentPos = inputIds.Count;
+        int currentPos = tokenCount;
 
         // ----- Generate new tokens -----
         for (int step = 0; step < maxNewTokens; step++)
@@ -258,7 +269,7 @@ public class TinyJarvisModel
         }
 
         // Return only the newly generated tokens (exclude the original prompt)
-        return allIds.Skip(inputIds.Count).ToList();
+        return allIds.Skip(tokens.Count).ToList();
     }
 
     /// <summary>Creates a fresh KV cache for a new document/sample.</summary>

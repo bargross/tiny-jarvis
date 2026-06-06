@@ -17,6 +17,7 @@
                 // Find the best pair of adjacent tokens to merge (by likelihood increase)
                 var bestMerge = FindBestMerge(trainingCorpus, vocabulary);
                 if (bestMerge == null) break;
+
                 vocabulary.Add(bestMerge);
             }
 
@@ -30,7 +31,7 @@
                                  from second in currentVocabulary
                                  select first + second;
 
-            double bestScore = double.NegativeInfinity;
+            var bestScore = double.NegativeInfinity;
             string bestMerge = null;
 
             foreach (var candidateMerge in possibleMerges)
@@ -70,17 +71,21 @@
         {
             // Same recursive longest-match logic from earlier
             if (string.IsNullOrEmpty(word)) yield break;
+
             var matches = vocabulary.Where(token => word.StartsWith(token)).OrderByDescending(t => t.Length);
-            string best = matches.FirstOrDefault();
+            var best = matches.FirstOrDefault();
+
             if (best != null)
             {
                 yield return best;
+
                 foreach (var token in SegmentWordWithLongestMatch(word.Substring(best.Length), vocabulary))
                     yield return token;
             }
             else
             {
                 yield return "[UNK]";
+
                 foreach (var token in SegmentWordWithLongestMatch(word.Substring(1), vocabulary))
                     yield return token;
             }

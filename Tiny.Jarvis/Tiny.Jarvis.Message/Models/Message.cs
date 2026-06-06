@@ -6,6 +6,6 @@
         public string Content { get; set; }
         public DateTime CreatedAt { get; set; }
 
-        public override string ToString() => $"{Role.ToString()}: {Content}";
+        public override string ToString() => $"{Role}: {Content}";
     }
 }

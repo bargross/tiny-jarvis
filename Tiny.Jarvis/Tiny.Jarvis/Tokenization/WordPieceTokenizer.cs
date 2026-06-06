@@ -16,7 +16,7 @@ namespace Tiny.Jarvis.Tokenization
         public int VocabSize => _vocabularySize;
         public int Bos { get; } // Beginning of Sequence token ID
 
-        public WordPieceTokenizer(IEnumerable<string> docs, int unknownTokenIdentifier, int targetVocabularySize = 20)
+        public WordPieceTokenizer(IEnumerable<string> docs, int unknownTokenIdentifier = -1, int targetVocabularySize = 20)
         {
             _vocabularySize = targetVocabularySize;
 
@@ -29,19 +29,11 @@ namespace Tiny.Jarvis.Tokenization
                 .Select((token, index) => new KeyValuePair<string, int>(token.First(), index))
                 .ToDictionary();
 
-            // Add [UNK] token
-            const string unknown = "[UNK]";
-            tokenToIdWP[unknown] = -1;
-            vocabulary.Add(unknown);
-
-            if (tokenToIdWP.Count > _vocabularySize) 
-                _vocabularySize = tokenToIdWP.Count;
-
             _tokenVocabulary = vocabulary;
+
             _tokenToIdentifier = tokenToIdWP.ToDictionary(kvp => kvp.Value, kvp => kvp.Key);
             _unknownTokenIdentifier = unknownTokenIdentifier;
             _identifierToToken = tokenToIdWP;
-            Bos = _tokenToIdentifier.Count; // Add the Bos token at the beginning and end of the sequence.
 
             if (!_tokenVocabulary.Contains(UnknownToken))
                 _tokenVocabulary.Add(UnknownToken);
@@ -51,6 +43,11 @@ namespace Tiny.Jarvis.Tokenization
 
             if (!_tokenToIdentifier.ContainsKey(unknownTokenIdentifier))
                 _tokenToIdentifier[unknownTokenIdentifier] = UnknownToken;
+
+            if (_tokenToIdentifier.Count > _vocabularySize)
+                _vocabularySize = _tokenToIdentifier.Count;
+
+            Bos = _vocabularySize - 1; // Add the Bos token at the beginning and end of the sequence.
         }
 
         public WordPieceTokenizer(

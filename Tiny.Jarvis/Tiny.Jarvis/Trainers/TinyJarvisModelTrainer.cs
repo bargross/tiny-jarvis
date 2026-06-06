@@ -11,14 +11,12 @@ namespace Tiny.Jarvis.Training.Trainers;
 
 public static class TinyJarvisModelTrainer
 {
-    public static (TinyJarvisModel, ITokenizer) Train(IEnumerable<string> docs, TokenizerStrategy strategy)
+    public static (TinyJarvisModel, ITokenizer) Train(IEnumerable<string> docs, TokenizerStrategy strategy, int maxSequenceLength = 8, int totalNumberOfSteps = 10000)
     {        
         // ── Hyperparameters ──────────────────────────────────────
 
         int embeddingSize = 16;
         int layerCount = 2; // just one transformer block for speed - try layerCount=2 to see improvement
-        int maxSequenceLength = 8;
-        int totalNumSteps = 10000; // should increase to 100,000 for better results - but 10k is good enough to see learning happening
         int headCount = 4;
         var learningRate = 1e-2;
         var random = new Random(42);
@@ -42,10 +40,11 @@ public static class TinyJarvisModelTrainer
         );
 
         Console.WriteLine($"num params: {model.Parameters.Count}");
+        Console.WriteLine(Environment.NewLine);
 
         // ── Training Loop ────────────────────────────────────────
 
-        var optimiser = new AdamOptimiser(model.Parameters, learningRate, totalNumSteps);
+        var optimiser = new AdamOptimiser(model.Parameters, learningRate, totalNumberOfSteps);
 
         // Running average to smooth out the noisy per-step loss.
         var avgLoss = 0.0;
@@ -56,18 +55,7 @@ public static class TinyJarvisModelTrainer
 
         var totalWorkerCount = Environment.ProcessorCount;
         var batchContainer = new List<Task>();
-        var maxNumSteps = totalNumSteps / totalWorkerCount;
-
-        // this computes the start and end step for each worker in advance so that they can be passed to the parallel loop without needing to capture the loop variable (which would cause issues with closures)
-        int[] startNumStepsPerBatch = new int[totalWorkerCount];
-        int[] endNumStepsPerBatch = new int[totalWorkerCount];
-        for (int i = 0; i < totalWorkerCount; i++)
-        {
-            startNumStepsPerBatch[i] = i * maxNumSteps;
-            endNumStepsPerBatch[i] = (i + 1) * maxNumSteps;
-        }
-
-        endNumStepsPerBatch[totalWorkerCount - 1] = totalNumSteps;
+        var maxNumSteps = totalNumberOfSteps / totalWorkerCount;
 
         Parallel.For(0, totalWorkerCount, batch =>
         {
@@ -76,8 +64,8 @@ public static class TinyJarvisModelTrainer
             var visited = new HashSet<Value>();
             var backwardStack = new ConcurrentStack<(Value, int)>();
 
-            var startNumSteps = startNumStepsPerBatch[batch];
-            var endNumSteps = endNumStepsPerBatch[batch];
+            var startNumSteps = batch * maxNumSteps;
+            var endNumSteps = (batch + 1) * maxNumSteps;
 
             Console.WriteLine($"batch {batch + 1} has started.");
 
@@ -99,7 +87,7 @@ public static class TinyJarvisModelTrainer
             tokens.Add(tokenizer.Bos); // mark the end of the sequence
 
             // Any name longer than maxSequenceLength - 1 is silently truncated here.
-            int tokenCount = Math.Min(maxSequenceLength, tokens.Count - 1);
+            int tokenCount = Math.Min(maxSequenceLength - 1, Math.Max(0, tokens.Count - 1));
 
             List<List<Value>>[] keys = model.CreateKvCache();
             List<List<Value>>[] values = model.CreateKvCache();
@@ -145,7 +133,7 @@ public static class TinyJarvisModelTrainer
             if (step == 0 || (step + 1) % 100 == 0)
             {
                 Console.WriteLine(
-                    $"Batch: {batch}, step: {step + 1,5} / {maxNumSteps,5} | loss {loss.Data:F4} | avg {avgLoss:F4}"
+                    $"Batch: {batch + 1}, step: {step + 1,5} / {maxNumSteps,5} | loss {loss.Data:F4} | avg {avgLoss:F4}"
                 );
             }
 
@@ -153,7 +141,7 @@ public static class TinyJarvisModelTrainer
             if ((step + 1) % 1000 == 0)
             {
                 Console.WriteLine(
-                    $"Batch: {batch} [milestone], avg. loss: {avgLoss:F4} (was {lastMilestoneLoss:F4})"
+                    $"Batch: {batch + 1} [milestone], avg. loss: {avgLoss:F4} (was {lastMilestoneLoss:F4})"
                 );
 
                 lastMilestoneLoss = avgLoss;

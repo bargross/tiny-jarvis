@@ -22,6 +22,11 @@ void BeginChat()
     var tokenizer = null as ITokenizer;
     var tokenizerStrategy = TokenizerStrategy.WordPiece;
 
+     // set this based on the average length of your documents (in tokens) - it controls the context window size for the model, so longer is generally better for performance but increases training time and memory usage
+    var maxSequenceLength = 15;
+
+    // TODO: it might be worth trying different values for different tokenizers to see if some converge faster than others (e.g. character-level tokenizers will likely require more steps than word-level ones)
+    var maxNumberOfSteps = 20000; // increase this for better performance - the optimal number depends on the size of your dataset and the complexity of the task
     if (format == "json")
     {
         var trainingDocsName = Path.GetFileNameWithoutExtension(filePath);
@@ -30,7 +35,7 @@ void BeginChat()
             var docs = Document.LoadFromJson<TitanicPassenger>(filePath, random);
 
             // Train (or load) the model
-            var (_model, _tokenizer) = TinyJarvisModelTrainer.Train(docs.Select(doc => doc.ToString()).ToList(), tokenizerStrategy);
+            var (_model, _tokenizer) = TinyJarvisModelTrainer.Train(docs.Select(doc => doc.ToString()).ToList(), tokenizerStrategy, maxSequenceLength, maxNumberOfSteps);
 
             model = _model;
             tokenizer = _tokenizer;
@@ -49,10 +54,10 @@ void BeginChat()
     } 
     else
     {
-        var docs = Document.LoadDocs(filePath, random);
+        var docs = Document.LoadFromFile(filePath, random);
 
         // Train (or load) the model
-        var (_model, _tokenizer) = TinyJarvisModelTrainer.Train(docs.Select(doc => doc.ToString()).ToList(), tokenizerStrategy);
+        var (_model, _tokenizer) = TinyJarvisModelTrainer.Train(docs.Select(doc => doc.ToString()).ToList(), tokenizerStrategy, maxSequenceLength, maxNumberOfSteps);
 
         model = _model;
         tokenizer = _tokenizer;
@@ -60,6 +65,7 @@ void BeginChat()
 
     // Now use the same model for chat
     Console.WriteLine("Training complete. Starting chat...");
+    Console.WriteLine(Environment.NewLine);
     var chat = new ChatSession(model, tokenizer);
 
     chat.Run();
@@ -80,12 +86,15 @@ string SelectTrainingFile(string pathToDir)
     .ToArray();
 
     Console.WriteLine($"Select Among Files Available inputs >> [0 -> {filesAvailable.Length - 1}]:");
+    Console.WriteLine("------------------------------------------------------------------------------");
+    Console.WriteLine(Environment.NewLine);
     for (var fileIndex = 0; fileIndex < filesAvailable.Length; fileIndex++)
     {
         Console.WriteLine($"{fileIndex}. {filesAvailable[fileIndex].Split('\\').Last()}");
     }
 
     Console.WriteLine(Environment.NewLine);
+    Console.Write("User: ");
     var userInput = Console.ReadLine();
     //var resultParsed = int.TryParse(userInput, out var index);
 
@@ -102,6 +111,7 @@ string SelectTrainingFile(string pathToDir)
 
         Console.WriteLine(Environment.NewLine);
         Console.WriteLine($"File chosen: {chosenFile}");
+        Console.WriteLine(Environment.NewLine);
 
         return chosenFile;
     }

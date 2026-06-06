@@ -15,7 +15,7 @@ namespace Tiny.Jarvis.Tokenization
         public int VocabSize => _vocabularySize;
         public int Bos { get; } // Beginning of Sequence token ID
 
-        public UnigramTokenizer(IEnumerable<string> docs, int unknownTokenIdentifier, int targetVocabularySize = 20)
+        public UnigramTokenizer(IEnumerable<string> docs, int unknownTokenIdentifier = -1, int targetVocabularySize = 20)
         {
             _vocabularySize = targetVocabularySize;
 
@@ -27,9 +27,6 @@ namespace Tiny.Jarvis.Tokenization
                 .OrderBy(t => t)
                 .Select((token, index) => new KeyValuePair<string, int>(token, index))
                 .ToDictionary();
-
-            int unknownId = -1;
-            tokenToIdU["[UNK]"] = unknownId;
 
             if (tokenToIdU.Count > _vocabularySize) _vocabularySize = tokenToIdU.Count;
 
@@ -47,6 +44,11 @@ namespace Tiny.Jarvis.Tokenization
 
             if (!_tokenLogProbabilities.ContainsKey(UnknownToken))
                 _tokenLogProbabilities[UnknownToken] = UnknownTokenLogProbability;
+
+            if (_tokenToIdentifier.Count > _vocabularySize)
+                _vocabularySize = _tokenToIdentifier.Count;
+
+            Bos = _vocabularySize - 1; // Add the Bos token at the beginning and end of the sequence.
         }
 
         public UnigramTokenizer(

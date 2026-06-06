@@ -19,7 +19,7 @@ namespace Tiny.Jarvis.Training.Models.Training
         [JsonPropertyName("response")]
         public string Response { get; set; } = string.Empty;
 
-        public override string ToString() => $"Instruction: {Instruction}\nIntent: {Intent}\nCategory: {Category}\nTags: {Tags}\nResponse: {Response}";
+        public override string ToString() => $"Instruction: {Instruction}, Intent: {Intent}, Category: {Category}, Tags: {Tags}, Response: {Response}";
 
     }
 }

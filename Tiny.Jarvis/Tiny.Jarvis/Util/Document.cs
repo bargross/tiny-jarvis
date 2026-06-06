@@ -8,7 +8,7 @@ namespace Tiny.Jarvis.Util
         /// <summary>
         /// Loads documents from a text file, one per line, shuffled.
         /// </summary>
-        public static List<string> LoadDocs(string path, Random random)
+        public static List<string> LoadFromFile(string path, Random random)
         {
             var lines = null as IEnumerable<string>;
 

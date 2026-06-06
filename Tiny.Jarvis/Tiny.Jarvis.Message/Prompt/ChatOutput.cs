@@ -3,8 +3,10 @@ using ChatMessage = Tiny.Jarvis.Message.Models.Message;
 
 namespace Tiny.Jarvis.Message.Prompt
 {
-    public class ChatOutput()
+    public class ChatOutput
     {
+        private static int _outputDelay = 250;
+
         public static void Reply(string response, List<ChatMessage> history)
         {
             var message = new ChatMessage
@@ -16,7 +18,19 @@ namespace Tiny.Jarvis.Message.Prompt
 
             history.Add(message);
 
-            Console.WriteLine(message.ToString());
+            var responseParts = response.Split(' ');
+
+            Console.Write($"{message.Role}: ");
+            foreach (var responsePart in responseParts)
+            {
+                Console.Write($" {responsePart}");
+
+                Thread.Sleep(_outputDelay);
+            }
+
+            Console.Write(Environment.NewLine);
+
+            //Console.WriteLine(message.ToString());
         }
 
         public static bool ShouldEnd(List<ChatMessage> history)
