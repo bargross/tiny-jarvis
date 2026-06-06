@@ -14,24 +14,24 @@ public static class TinyJarvisModelTrainer
     public static (TinyJarvisModel, ITokenizer) Train(IEnumerable<string> docs, TokenizerStrategy strategy)
     {        
         // ── Hyperparameters ──────────────────────────────────────
+
         int embeddingSize = 16;
         int layerCount = 2; // just one transformer block for speed - try layerCount=2 to see improvement
         int maxSequenceLength = 8;
         int totalNumSteps = 10000; // should increase to 100,000 for better results - but 10k is good enough to see learning happening
         int headCount = 4;
-        double learningRate = 1e-2;
+        var learningRate = 1e-2;
         var random = new Random(42);
-        const double Temperature = 0.5;
 
         // ── Dataset and Tokenizer ────────────────────────────────
-        var smartTokenizerGenerator = new SmartTokenizerGenerator(docs);
 
-        var tokenizer = smartTokenizerGenerator.GetTokenizer(strategy);
+        var tokenizer = SmartTokenizerGenerator.GetTokenizer(strategy, docs);
 
         Console.WriteLine($"num docs: {docs.Count()}");
         Console.WriteLine($"vocab size: {tokenizer.VocabSize}");
 
         // ── Model ────────────────────────────────────────────────
+
         var model = new TinyJarvisModel(
             tokenizer.VocabSize,
             embeddingSize,
@@ -44,61 +44,60 @@ public static class TinyJarvisModelTrainer
         Console.WriteLine($"num params: {model.Parameters.Count}");
 
         // ── Training Loop ────────────────────────────────────────
+
         var optimiser = new AdamOptimiser(model.Parameters, learningRate, totalNumSteps);
 
-        // Reusable buffers for Backward (see Chapter 2's convenience overload for the
-        // simpler allocating version - here we hoist them out of the hot loop so 10,000
-        // training steps don't allocate 10,000 fresh sets).
-        var topo = new List<Value>();
-        var visited = new HashSet<Value>();
-        var backwardStack = new ConcurrentStack<(Value, int)>();
-
         // Running average to smooth out the noisy per-step loss.
-        double avgLoss = 0.0;
+        var avgLoss = 0.0;
+
         // Milestone tracking so we can report the previous milestone's avg loss
         // alongside the current one every 1000 steps.
-        double lastMilestoneLoss = 0.0;
+        var lastMilestoneLoss = 0.0;
 
         var totalWorkerCount = Environment.ProcessorCount;
-        var batchContainer = new List<Thread>();
-        var startNumSteps = 0;
+        var batchContainer = new List<Task>();
         var maxNumSteps = totalNumSteps / totalWorkerCount;
-        //var backwardStackBatchContainer = new ConcurrentDictionary<int, Stack<(Value, int)>>();
-        
-        for (int batch = 0; batch < totalWorkerCount; batch++)
+
+        // this computes the start and end step for each worker in advance so that they can be passed to the parallel loop without needing to capture the loop variable (which would cause issues with closures)
+        int[] startNumStepsPerBatch = new int[totalWorkerCount];
+        int[] endNumStepsPerBatch = new int[totalWorkerCount];
+        for (int i = 0; i < totalWorkerCount; i++)
         {
-            Console.WriteLine($"\n=== batch {batch + 1} ===");
-            if (batch > 0)
-            {
-                startNumSteps = maxNumSteps;
-                maxNumSteps += maxNumSteps;
-            }
-
-            //var backwardStack = new Stack<(Value, int)>();
-            //backwardStackBatchContainer.AddOrUpdate(batch, backwardStack);
-            var workerThread = new Thread(() =>
-                TrainModel(docs, startNumSteps, maxNumSteps, tokenizer, maxSequenceLength, model, avgLoss, lastMilestoneLoss, optimiser, topo, visited, backwardStack));
-
-            batchContainer.Add(workerThread);
-                
-            workerThread.IsBackground = true;
-            workerThread.Start();
-            workerThread.Join(); // <--- stops main thread from continuing until all threads finish
+            startNumStepsPerBatch[i] = i * maxNumSteps;
+            endNumStepsPerBatch[i] = (i + 1) * maxNumSteps;
         }
+
+        endNumStepsPerBatch[totalWorkerCount - 1] = totalNumSteps;
+
+        Parallel.For(0, totalWorkerCount, batch =>
+        {
+            // Reusable buffers for Backward (see Chapter 2's convenience overload for the
+            var topo = new List<Value>();
+            var visited = new HashSet<Value>();
+            var backwardStack = new ConcurrentStack<(Value, int)>();
+
+            var startNumSteps = startNumStepsPerBatch[batch];
+            var endNumSteps = endNumStepsPerBatch[batch];
+
+            Console.WriteLine($"batch {batch + 1} has started.");
+
+            TrainModel(batch, docs, startNumSteps, endNumSteps, tokenizer, maxSequenceLength, model, avgLoss, lastMilestoneLoss, optimiser, topo, visited, backwardStack);
+        });
 
         return (model, tokenizer);
     }
 
-    private static void TrainModel(IEnumerable<string> docs, int startNumStep, int maxNumSteps, ITokenizer tokenizer, int maxSequenceLength, TinyJarvisModel model, double avgLoss, double lastMilestoneLoss, AdamOptimiser optimiser, List<Value> topo, HashSet<Value> visited, ConcurrentStack<(Value, int)> backwardStack)
+    private static void TrainModel(int batch, IEnumerable<string> docs, int startNumStep, int maxNumSteps, ITokenizer tokenizer, int maxSequenceLength, TinyJarvisModel model, double avgLoss, double lastMilestoneLoss, AdamOptimiser optimiser, List<Value> topo, HashSet<Value> visited, ConcurrentStack<(Value, int)> backwardStack)
     {
         for (int step = startNumStep; step < maxNumSteps; step++)
         {
-            string doc = docs.ElementAt(step % docs.Count());
+            var doc = docs.ElementAt(step % docs.Count());
             var tokens = new List<int> { tokenizer.Bos };
 
             tokens.AddRange(tokenizer.Encode(doc));
 
-            tokens.Add(tokenizer.Bos);
+            tokens.Add(tokenizer.Bos); // mark the end of the sequence
+
             // Any name longer than maxSequenceLength - 1 is silently truncated here.
             int tokenCount = Math.Min(maxSequenceLength, tokens.Count - 1);
 
@@ -108,7 +107,8 @@ public static class TinyJarvisModelTrainer
             var losses = new List<Value>();
             for (int posId = 0; posId < tokenCount; posId++)
             {
-                List<Value> logits = model.Forward(tokens[posId], posId, keys, values);
+                var token = tokens[posId];
+                List<Value> logits = model.Forward(token, posId, keys, values);
                 List<Value> probabilities = Helpers.Softmax(logits);
 
                 var index = posId + 1;
@@ -137,6 +137,7 @@ public static class TinyJarvisModelTrainer
             topo.Clear();
             visited.Clear();
             backwardStack.Clear();
+
             loss.Backward(topo, visited, backwardStack);
 
             optimiser.Step(step);
@@ -144,7 +145,7 @@ public static class TinyJarvisModelTrainer
             if (step == 0 || (step + 1) % 100 == 0)
             {
                 Console.WriteLine(
-                    $"step {step + 1,5} / {maxNumSteps,5} | loss {loss.Data:F4} | avg {avgLoss:F4}"
+                    $"Batch: {batch}, step: {step + 1,5} / {maxNumSteps,5} | loss {loss.Data:F4} | avg {avgLoss:F4}"
                 );
             }
 
@@ -152,7 +153,7 @@ public static class TinyJarvisModelTrainer
             if ((step + 1) % 1000 == 0)
             {
                 Console.WriteLine(
-                    $"  [milestone] avg loss: {avgLoss:F4} (was {lastMilestoneLoss:F4})"
+                    $"Batch: {batch} [milestone], avg. loss: {avgLoss:F4} (was {lastMilestoneLoss:F4})"
                 );
 
                 lastMilestoneLoss = avgLoss;

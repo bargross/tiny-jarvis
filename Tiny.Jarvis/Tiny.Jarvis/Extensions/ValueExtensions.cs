@@ -19,10 +19,11 @@ namespace Tiny.Jarvis.Extensions
             // Stage 1: Iterative topological sort
             stack.Push((value, 0));
 
-            while (stack.Count > 0)
+            while (stack.TryPop(out var result))
             {
-                stack.TryPop(out var result);
                 var current = result.current;
+                if (current == null) continue;
+
                 var inputIndex = result.inputIndex;
                 Value[]? inputs = current?.Inputs;
 

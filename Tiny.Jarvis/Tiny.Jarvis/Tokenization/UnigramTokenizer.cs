@@ -31,6 +31,8 @@ namespace Tiny.Jarvis.Tokenization
             int unknownId = -1;
             tokenToIdU["[UNK]"] = unknownId;
 
+            if (tokenToIdU.Count > _vocabularySize) _vocabularySize = tokenToIdU.Count;
+
             _tokenLogProbabilities = tokenLogProbabilities;
             _tokenToIdentifier = tokenToIdU.ToDictionary(kvp => kvp.Value, kvp => kvp.Key); ;
             _unknownTokenIdentifier = unknownTokenIdentifier;

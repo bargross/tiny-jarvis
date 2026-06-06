@@ -35,12 +35,12 @@ namespace Tiny.Jarvis.Message.Prompt
                 }
 
                 // Build prompt with history
-                string prompt = string.Join("\n", _history.Select(x => x.ToString())) + "\nassistant:";
+                var prompt = string.Join("\n", _history.Select(x => x.ToString())) + "\nassistant:";
 
                 // Generate response
                 var inputIds = _tokenizer.Encode(prompt);
                 var responseIds = _model.Generate(inputIds, maxNewTokens: 100, temperature: 0.8, topK: 50, topP: 0.95);
-                string response = _tokenizer.Decode(responseIds);
+                var response = _tokenizer.Decode(responseIds);
 
                 // Clean and display
                 response = CleanResponse(response);

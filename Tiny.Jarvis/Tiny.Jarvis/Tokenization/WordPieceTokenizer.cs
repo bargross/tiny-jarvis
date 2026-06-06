@@ -34,6 +34,9 @@ namespace Tiny.Jarvis.Tokenization
             tokenToIdWP[unknown] = -1;
             vocabulary.Add(unknown);
 
+            if (tokenToIdWP.Count > _vocabularySize) 
+                _vocabularySize = tokenToIdWP.Count;
+
             _tokenVocabulary = vocabulary;
             _tokenToIdentifier = tokenToIdWP.ToDictionary(kvp => kvp.Value, kvp => kvp.Key);
             _unknownTokenIdentifier = unknownTokenIdentifier;

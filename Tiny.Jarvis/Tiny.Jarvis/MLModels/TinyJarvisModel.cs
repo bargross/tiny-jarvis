@@ -66,7 +66,7 @@ public class TinyJarvisModel
         // In .NET Core+ it preserves insertion order in practice, so Adam's momentum[]/squaredGradAvg[]
         // line up across runs - but if that implementation detail ever changes, switch
         // to a List<KeyValuePair<string, ...>> to make the order explicit.
-        Parameters = [.. _stateDict.Values.SelectMany(mat => mat).SelectMany(row => row)];
+        Parameters = _stateDict.Values.SelectMany(mat => mat).SelectMany(row => row).ToList();
     }
 
     public List<Value> Forward(
@@ -76,8 +76,11 @@ public class TinyJarvisModel
         List<List<Value>>[] values
     )
     {
-        var tokenEmbedding = TokenEmbeddings.GetRow(tokenId);
-        var positionEmbedding = PositionEmbeddings.GetRow(posId);
+        if (tokenId < 0 || tokenId > TokenEmbeddings.Length)
+            throw new ArgumentOutOfRangeException(nameof(tokenId), $"tokenId {tokenId} is out of bounds for vocab size {TokenEmbeddings.Length}");
+
+        var tokenEmbedding = TokenEmbeddings.GetRow(tokenId - 1); // problems with tokenId being outside the bounds
+        var positionEmbedding = PositionEmbeddings.GetRow(posId); // problems with posId being outside the bounds
 
         var probabilities = new List<Value>();
         for (int i = 0; i < _embeddingSize; i++)
@@ -104,26 +107,26 @@ public class TinyJarvisModel
     // Attention wrapped with pre-norm and a residual connection.
     // Mutates keys[layerIndex] and values[layerIndex] by appending the current position's K and V.
     private List<Value> AttentionBlock(
-        List<Value> x,
+        List<Value> probabilities,
         int layerIndex,
         List<List<Value>>[] keys,
         List<List<Value>>[] values
     )
     {
-        var xResidual = new List<Value>(x);
-        x = Helpers.RmsNorm(x);
+        var xResidual = new List<Value>(probabilities);
+        probabilities = Helpers.RmsNorm(probabilities);
 
-        List<Value> query = Helpers.Linear(x, _stateDict[$"layer{layerIndex}.attn_wq"]);
-        List<Value> key = Helpers.Linear(x, _stateDict[$"layer{layerIndex}.attn_wk"]);
-        List<Value> value = Helpers.Linear(x, _stateDict[$"layer{layerIndex}.attn_wv"]);
+        List<Value> query = Helpers.Linear(probabilities, _stateDict[$"layer{layerIndex}.attn_wq"]);
+        List<Value> key = Helpers.Linear(probabilities, _stateDict[$"layer{layerIndex}.attn_wk"]);
+        List<Value> value = Helpers.Linear(probabilities, _stateDict[$"layer{layerIndex}.attn_wv"]);
 
         keys[layerIndex].Add(key);
         values[layerIndex].Add(value);
 
         var concatenatedHeads = new List<Value>();
-        for (int h = 0; h < _headCount; h++)
+        for (int count = 0; count < _headCount; count++)
         {
-            int headStart = h * _headDimension;
+            int headStart = count * _headDimension;
             List<Value> queryForHead = query.GetRange(headStart, _headDimension);
 
             var attentionLogits = new List<Value>();
@@ -148,46 +151,47 @@ public class TinyJarvisModel
                 headOutput.Add(new Value(0));
             }
 
-            for (int t = 0; t < cachedCount; t++)
+            for (int dimension = 0; dimension < cachedCount; dimension++)
             {
-                List<Value> valueForHead = values[layerIndex]
-                    [t]
+                List<Value> valueForHead = values[layerIndex][dimension]
                     .GetRange(headStart, _headDimension);
-                Value w = attentionWeights[t];
-                for (int j = 0; j < _headDimension; j++)
+
+                Value weight = attentionWeights[dimension];
+                for (int idx = 0; idx < _headDimension; idx++)
                 {
-                    headOutput[j] += w * valueForHead[j];
+                    headOutput[idx] += weight * valueForHead[idx];
                 }
             }
+
             concatenatedHeads.AddRange(headOutput);
         }
 
-        x = Helpers.Linear(concatenatedHeads, _stateDict[$"layer{layerIndex}.attn_wo"]);
+        probabilities = Helpers.Linear(concatenatedHeads, _stateDict[$"layer{layerIndex}.attn_wo"]);
         for (int i = 0; i < _embeddingSize; i++)
         {
-            x[i] += xResidual[i];
+            probabilities[i] += xResidual[i];
         }
 
-        return x;
+        return probabilities;
     }
 
     // Two-layer feed-forward with ReLU, wrapped with pre-norm and a residual connection.
-    private List<Value> MlpBlock(List<Value> x, int layerIndex)
+    private List<Value> MlpBlock(List<Value> probabilities, int layerIndex)
     {
-        var xResidual = new List<Value>(x);
+        var xResidual = new List<Value>(probabilities);
 
-        x = Helpers.RmsNorm(x);
-        x = Helpers.Linear(x, _stateDict[$"layer{layerIndex}.mlp_fc1"]);
+        probabilities = Helpers.RmsNorm(probabilities);
+        probabilities = Helpers.Linear(probabilities, _stateDict[$"layer{layerIndex}.mlp_fc1"]);
 
-        x = [.. x.Select(xi => xi.Relu())];
+        probabilities = probabilities.Select(xi => xi.Relu()).ToList();
 
-        x = Helpers.Linear(x, _stateDict[$"layer{layerIndex}.mlp_fc2"]);
-        for (int i = 0; i < _embeddingSize; i++)
-        {
-            x[i] += xResidual[i];
-        }
+        probabilities = Helpers.Linear(probabilities, _stateDict[$"layer{layerIndex}.mlp_fc2"]);
+        
+        for (int embeddingIndex = 0; embeddingIndex < _embeddingSize; embeddingIndex++)
+            probabilities[embeddingIndex] += xResidual[embeddingIndex];
+        
 
-        return x;
+        return probabilities;
     }
 
     /// <summary>
@@ -213,16 +217,17 @@ public class TinyJarvisModel
         var values = CreateKvCache();
 
         // allIds will hold the full sequence (prompt + generated)
-        List<int> allIds = new List<int>(inputIds);
+        var allIds = new List<int>(inputIds);
 
         // This will store the logits returned by the last Forward call.
         // After processing the final prompt token, these logits represent predictions for the first new token.
-        List<Value> lastLogits = null;
+        List<Value>? lastLogits = null;
 
         // ----- Feed the entire prompt (one token at a time) to fill the KV caches -----
         for (int pos = 0; pos < inputIds.Count; pos++)
         {
             int tokenId = inputIds[pos];
+
             // Forward returns logits for the *next* token (position pos+1)
             lastLogits = Forward(tokenId, pos, keys, values);
             // We ignore the logits from intermediate steps; only the final lastLogits matters.

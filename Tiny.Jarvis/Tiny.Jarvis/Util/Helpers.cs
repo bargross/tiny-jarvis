@@ -64,17 +64,18 @@ public static class Helpers
     /// Rescales a vector so its overall magnitude is close to 1, using the root mean
     /// square of its values. Keeps activations stable across deep networks.
     /// </summary>
-    public static List<Value> RmsNorm(List<Value> x)
+    public static List<Value> RmsNorm(List<Value> probabilities)
     {
         var sumSq = new Value(0);
-        foreach (Value xi in x)
+        foreach (Value xi in probabilities)
         {
             sumSq += xi * xi;
         }
 
-        Value ms = sumSq / x.Count;
+        Value ms = sumSq / probabilities.Count;
         Value scale = (ms + 1e-5).Pow(-0.5);
-        return [.. x.Select(xi => xi * scale)];
+
+        return probabilities.Select(xi => xi * scale).ToList();
     }
 
     public static void ApplyTemperature(List<Value> logits, double temperature)

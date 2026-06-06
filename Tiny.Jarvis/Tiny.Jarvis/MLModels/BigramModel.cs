@@ -6,7 +6,7 @@ namespace Tiny.Jarvis.MLModels;
 internal class BigramModel
 {
     private readonly double[,] _nextTokenProbs;
-    private readonly SmartTokenizerGenerator _smartTokenGenerator;
+    private ITokenizer Tokenizer;
 
     public BigramModel(List<string> docs, SimpleTokenizer tokenizer)
     {
@@ -17,19 +17,17 @@ internal class BigramModel
 
         // Convert counts to probabilities
         _nextTokenProbs = ConvertToProbabilities(counts);
-
-        _smartTokenGenerator = new SmartTokenizerGenerator(docs);
     }
 
     internal int[,] CountTransitions(List<string> docs)
     {
-        var tokenizer = _smartTokenGenerator.GetTokenizer(Enums.TokenizerStrategy.Simple);
-        int vocabSize = tokenizer.VocabSize;
+        Tokenizer = SmartTokenizerGenerator.GetTokenizer(Enums.TokenizerStrategy.Simple, docs);
+        int vocabSize = Tokenizer.VocabSize;
         int[,] counts = new int[vocabSize, vocabSize];
 
         foreach (string doc in docs)
         {
-            var tokens = tokenizer.Encode(doc);
+            var tokens = Tokenizer.Encode(doc);
             for (int i = 0; i < tokens.Count - 1; i++)
             {
                 counts[tokens[i], tokens[i + 1]]++;
@@ -41,8 +39,7 @@ internal class BigramModel
     
     internal double[,] ConvertToProbabilities(int[,] counts)
     {
-        var tokenizer = _smartTokenGenerator.GetTokenizer(Enums.TokenizerStrategy.Simple);
-        int vocabSize = tokenizer.VocabSize;
+        int vocabSize = Tokenizer.VocabSize;
         double[,] probs = new double[vocabSize, vocabSize];
 
         for (var i = 0; i < vocabSize; i++)
@@ -65,15 +62,14 @@ internal class BigramModel
 
     internal string Generate(Random random, int maxLength = 20)
     {
-        var tokenizer = _smartTokenGenerator.GetTokenizer(Enums.TokenizerStrategy.Simple);
         var token = 0;
         var wordBuilder = new StringBuilder();
         for (var step = 0; step < maxLength; step++)
         {
             var r = random.NextDouble();
             var cumulative = 0.0;
-            var next = tokenizer.VocabSize - 1;
-            for (var j = 0; j < tokenizer.VocabSize; j++)
+            var next = Tokenizer.VocabSize - 1;
+            for (var j = 0; j < Tokenizer.VocabSize; j++)
             {
                 cumulative += _nextTokenProbs[token, j];
                 if (r <= cumulative)
@@ -85,7 +81,7 @@ internal class BigramModel
 
             if (next == token) break;
 
-            wordBuilder.Append(tokenizer.Decode(new List<int> { next }));
+            wordBuilder.Append(Tokenizer.Decode(new List<int> { next }));
 
             token = next;
         }
@@ -108,12 +104,11 @@ internal class BigramModel
     /// </summary>
     public double ComputeLoss(List<string> docs)
     {
-        var tokenizer = _smartTokenGenerator.GetTokenizer(Enums.TokenizerStrategy.Simple);
         var totalLoss = 0.0;
         var totalTokens = 0;
         foreach (string doc in docs)
         {
-            var tokens = tokenizer.Encode(doc);
+            var tokens = Tokenizer.Encode(doc);
             for (var i = 0; i < tokens.Count - 1; i++)
             {
                 var pair = _nextTokenProbs[tokens[i], tokens[i + 1]];

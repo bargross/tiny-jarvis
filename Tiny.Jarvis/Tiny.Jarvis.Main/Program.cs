@@ -85,10 +85,11 @@ string SelectTrainingFile(string pathToDir)
         Console.WriteLine($"{fileIndex}. {filesAvailable[fileIndex].Split('\\').Last()}");
     }
 
+    Console.WriteLine(Environment.NewLine);
     var userInput = Console.ReadLine();
-    var resultParsed = int.TryParse(userInput, out var index);
+    //var resultParsed = int.TryParse(userInput, out var index);
 
-    if (!resultParsed)
+    if (!int.TryParse(userInput, out var index))
     {
         Console.WriteLine("Invalid input, it must be a number corresponding to the file index.");
         return SelectTrainingFile(pathToDir);
@@ -97,7 +98,12 @@ string SelectTrainingFile(string pathToDir)
     var filePath = null as string;
     if (index >= 0 && index < filesAvailable.Length)
     {
-        return filesAvailable[index];
+        var chosenFile = filesAvailable[index];
+
+        Console.WriteLine(Environment.NewLine);
+        Console.WriteLine($"File chosen: {chosenFile}");
+
+        return chosenFile;
     }
 
     return SelectTrainingFile(pathToDir);
