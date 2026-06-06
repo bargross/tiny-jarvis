@@ -71,7 +71,7 @@ public static class TinyJarvisModelTrainer
 
         Parallel.For(0, totalWorkerCount, batch =>
         {
-            // Reusable buffers for Backward (see Chapter 2's convenience overload for the
+            // Reusable buffers for Backward
             var topo = new List<Value>();
             var visited = new HashSet<Value>();
             var backwardStack = new ConcurrentStack<(Value, int)>();

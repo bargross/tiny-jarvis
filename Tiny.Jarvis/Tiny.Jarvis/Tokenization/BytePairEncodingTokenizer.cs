@@ -90,31 +90,5 @@ namespace Tiny.Jarvis.Tokenization
             );
             return mergedSequence.Split(delimiter).ToList();
         }
-
-        private Dictionary<int, string> AdjustTokens(IEnumerable<KeyValuePair<int, string>> tokensToIdentifiers)
-        {
-            var adjustedTokens = new Dictionary<int, string>();
-            for (var index = 0; index < tokensToIdentifiers.Count(); index++)
-            {
-                var kvp = tokensToIdentifiers.ElementAt(index);
-                if (kvp.Key != index)
-                {
-                    var kv = new KeyValuePair<int, string>(index, kvp.Value);
-                }
-
-                int id = kvp.Key;
-                string token = kvp.Value;
-                // Ensure the unknown token is included in the adjusted tokens
-                if (token == _unknownTokenString)
-                {
-                    adjustedTokens[_unknownTokenIdentifier] = _unknownTokenString;
-                }
-                else
-                {
-                    adjustedTokens[id] = token;
-                }
-            }
-            return adjustedTokens;
-        }
     }
 }
