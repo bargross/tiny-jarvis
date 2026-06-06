@@ -53,31 +53,12 @@ public static class TinyJarvisModelTrainer
         // alongside the current one every 1000 steps.
         var lastMilestoneLoss = 0.0;
 
-        var totalWorkerCount = Environment.ProcessorCount;
-        var batchContainer = new List<Task>();
-        var maxNumSteps = totalNumberOfSteps / totalWorkerCount;
+        // Reusable buffers for Backward
+        var topo = new List<Value>();
+        var visited = new HashSet<Value>();
+        var backwardStack = new Stack<(Value, int)>();
 
-        Parallel.For(0, totalWorkerCount, batch =>
-        {
-            // Reusable buffers for Backward
-            var topo = new List<Value>();
-            var visited = new HashSet<Value>();
-            var backwardStack = new ConcurrentStack<(Value, int)>();
-
-            var startNumSteps = batch * maxNumSteps;
-            var endNumSteps = (batch + 1) * maxNumSteps;
-
-            Console.WriteLine($"batch {batch + 1} has started.");
-
-            TrainModel(batch, docs, startNumSteps, endNumSteps, tokenizer, maxSequenceLength, model, avgLoss, lastMilestoneLoss, optimiser, topo, visited, backwardStack);
-        });
-
-        return (model, tokenizer);
-    }
-
-    private static void TrainModel(int batch, IEnumerable<string> docs, int startNumStep, int maxNumSteps, ITokenizer tokenizer, int maxSequenceLength, TinyJarvisModel model, double avgLoss, double lastMilestoneLoss, AdamOptimiser optimiser, List<Value> topo, HashSet<Value> visited, ConcurrentStack<(Value, int)> backwardStack)
-    {
-        for (int step = startNumStep; step < maxNumSteps; step++)
+        for (int step = 0; step < totalNumberOfSteps; step++)
         {
             var doc = docs.ElementAt(step % docs.Count());
             var tokens = new List<int> { tokenizer.Bos };
@@ -87,28 +68,23 @@ public static class TinyJarvisModelTrainer
             tokens.Add(tokenizer.Bos); // mark the end of the sequence
 
             // Any name longer than maxSequenceLength - 1 is silently truncated here.
-            int tokenCount = Math.Min(maxSequenceLength - 1, Math.Max(0, tokens.Count - 1));
+            int tokenCount = Math.Min(maxSequenceLength - 1, tokens.Count);
 
             List<List<Value>>[] keys = model.CreateKvCache();
             List<List<Value>>[] values = model.CreateKvCache();
 
-            var losses = new List<Value>();
+            var loss = new Value(0);
             for (int posId = 0; posId < tokenCount; posId++)
             {
                 var token = tokens[posId];
+
                 List<Value> logits = model.Forward(token, posId, keys, values);
                 List<Value> probabilities = Helpers.Softmax(logits);
 
                 var index = posId + 1;
                 if (index < 0) continue;
 
-                losses.Add(-probabilities[tokens[posId + 1]].Log());
-            }
-
-            var loss = new Value(0);
-            foreach (Value l in losses)
-            {
-                loss += l;
+                loss += Helpers.CrossEntropyLoss(logits, tokens[posId + 1]);
             }
 
             loss *= 1.0 / tokenCount;
@@ -129,11 +105,13 @@ public static class TinyJarvisModelTrainer
             loss.Backward(topo, visited, backwardStack);
 
             optimiser.Step(step);
+            double percentage = (step + 1) * 100.0 / totalNumberOfSteps;
 
             if (step == 0 || (step + 1) % 100 == 0)
             {
+                Console.Write($"\rTraining: {percentage:F2}% complete  | ");
                 Console.WriteLine(
-                    $"Batch: {batch + 1}, step: {step + 1,5} / {maxNumSteps,5} | loss {loss.Data:F4} | avg {avgLoss:F4}"
+                    $"step: {step + 1,5} / {totalNumberOfSteps,5} | loss {loss.Data:F4} | avg {avgLoss:F4}"
                 );
             }
 
@@ -141,11 +119,29 @@ public static class TinyJarvisModelTrainer
             if ((step + 1) % 1000 == 0)
             {
                 Console.WriteLine(
-                    $"Batch: {batch + 1} [milestone], avg. loss: {avgLoss:F4} (was {lastMilestoneLoss:F4})"
+                    $"[milestone], avg. loss: {avgLoss:F4} (was {lastMilestoneLoss:F4})"
                 );
+                Console.WriteLine(Environment.NewLine);
 
                 lastMilestoneLoss = avgLoss;
             }
+
         }
+
+        return (model, tokenizer);
+    }
+
+    private static int RoundToNearestUnit(int n, int k)
+    {
+        if (n == 0) return 0;
+
+        int d = (int)Math.Floor(Math.Log10(Math.Abs(n))) + 1;
+
+        if (k >= d) return n;
+
+        int divisor = (int)Math.Pow(10, d - k);
+        int leading = n / divisor;
+
+        return leading * divisor;
     }
 }

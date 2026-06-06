@@ -10,64 +10,40 @@ namespace Tiny.Jarvis.Tokenization
 
         private readonly int _unknownTokenIdentifier;
         private const string UnknownToken = "[UNK]";
+        private const string BosToken = "[BOS]";
         private const string SubwordPrefix = "##";
         private readonly int _vocabularySize;
 
         public int VocabSize => _vocabularySize;
         public int Bos { get; } // Beginning of Sequence token ID
 
-        public WordPieceTokenizer(IEnumerable<string> docs, int unknownTokenIdentifier = -1, int targetVocabularySize = 20)
+        public WordPieceTokenizer(IEnumerable<string> docs, int targetVocabularySize = 20)
         {
-            _vocabularySize = targetVocabularySize;
+            // Train WordPiece subword vocabulary (list of strings, no special tokens yet)
+            var trainedTokens = new WordPieceTrainer().Train(docs, targetVocabularySize);
 
-            var vocabulary = new WordPieceTrainer().Train(docs, targetVocabularySize);
+            // Prepare a set of all tokens (use a HashSet to avoid duplicates)
+            var allTokensSet = new HashSet<string> { UnknownToken, BosToken };
+            foreach (var token in trainedTokens)
+                allTokensSet.Add(token);   // duplicates (like "[UNK]") are ignored
 
-            // 2. Build token-to-ID map (simple assignment)
-            var tokenToIdWP = vocabulary
-                .OrderBy(t => t)
-                .GroupBy(k => k)           // group by value
-                .Select((token, index) => new KeyValuePair<string, int>(token.First(), index))
-                .ToDictionary();
+            // Convert to a sorted list for deterministic ordering
+            var allTokensList = allTokensSet.OrderBy(t => t).ToList();
 
-            _tokenVocabulary = vocabulary;
+            // Build mapping: token string → integer ID
+            var tokenToId = new Dictionary<string, int>();
+            for (int i = 0; i < allTokensList.Count; i++)
+                tokenToId[allTokensList[i]] = i;
 
-            _tokenToIdentifier = tokenToIdWP.ToDictionary(kvp => kvp.Value, kvp => kvp.Key);
-            _unknownTokenIdentifier = unknownTokenIdentifier;
-            _identifierToToken = tokenToIdWP;
+            // Assign your fields exactly as in your original code
+            _tokenVocabulary = allTokensSet;                                
+            _identifierToToken = tokenToId;                                 // string → int
+            _tokenToIdentifier = tokenToId.ToDictionary(kvp => kvp.Value, kvp => kvp.Key); // int → string
 
-            if (!_tokenVocabulary.Contains(UnknownToken))
-                _tokenVocabulary.Add(UnknownToken);
+            _unknownTokenIdentifier = _identifierToToken[UnknownToken];
+            Bos = _identifierToToken[BosToken];
 
-            if (!_identifierToToken.ContainsKey(UnknownToken))
-                _identifierToToken[UnknownToken] = unknownTokenIdentifier;
-
-            if (!_tokenToIdentifier.ContainsKey(unknownTokenIdentifier))
-                _tokenToIdentifier[unknownTokenIdentifier] = UnknownToken;
-
-            if (_tokenToIdentifier.Count > _vocabularySize)
-                _vocabularySize = _tokenToIdentifier.Count;
-
-            Bos = _vocabularySize - 1; // Add the Bos token at the beginning and end of the sequence.
-        }
-
-        public WordPieceTokenizer(
-            HashSet<string> tokenVocabulary,
-            Dictionary<string, int> identifierToToken,
-            int unknownTokenIdentifier)
-        {
-            _tokenVocabulary = tokenVocabulary;
-            _tokenToIdentifier = identifierToToken.ToDictionary(kvp => kvp.Value, kvp => kvp.Key);
-            _unknownTokenIdentifier = unknownTokenIdentifier;
-            _identifierToToken = identifierToToken;
-
-            if (!_tokenVocabulary.Contains(UnknownToken))
-                _tokenVocabulary.Add(UnknownToken);
-
-            if (!_identifierToToken.ContainsKey(UnknownToken))
-                _identifierToToken[UnknownToken] = unknownTokenIdentifier;
-
-            if (!_tokenToIdentifier.ContainsKey(unknownTokenIdentifier))
-                _tokenToIdentifier[unknownTokenIdentifier] = UnknownToken;
+            _vocabularySize = _tokenToIdentifier.Count;
         }
 
         public IReadOnlyList<int> Encode(string text)

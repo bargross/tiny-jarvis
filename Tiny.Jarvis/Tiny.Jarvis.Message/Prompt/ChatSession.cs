@@ -37,10 +37,16 @@ namespace Tiny.Jarvis.Message.Prompt
                 // Build prompt with history
                 var prompt = string.Join("\n", _history.Select(x => x.ToString())) + "\nassistant:";
 
-                // Generate response
-                var inputIds = _tokenizer.Encode(prompt);
-                var responseIds = _model.Generate(inputIds, maxNewTokens: 100, temperature: 0.8, topK: 50, topP: 0.95);
-                var response = _tokenizer.Decode(responseIds);
+                // Get encoded sequence with Bos at the beginning
+                var inputIds = AddBosTokenToList(_tokenizer.Encode(prompt));
+
+                Console.WriteLine($"BOS token: {_tokenizer.Bos}");
+                Console.WriteLine($"tokens before Generate is called: {string.Join(",", inputIds)}");
+
+                var responseTokens = _model.Generate(inputIds, maxNewTokens: 100, temperature: 0.8, topK: 50, topP: 0.95);
+
+                Console.WriteLine($"Generated response tokens: {string.Join(",", responseTokens)}");
+                var response = _tokenizer.Decode(responseTokens);
 
                 // Clean and display
                 response = CleanResponse(response);
@@ -52,13 +58,22 @@ namespace Tiny.Jarvis.Message.Prompt
         private string CleanResponse(string response)
         {
             // Stop if model starts generating a new user/assistant tag
-            int idx = response.IndexOf("\nuser:", StringComparison.OrdinalIgnoreCase);
+            int idx = response.IndexOf("user:", StringComparison.OrdinalIgnoreCase);
             if (idx >= 0) response = response.Substring(0, idx);
 
-            idx = response.IndexOf("\nassistant:", StringComparison.OrdinalIgnoreCase);
+            idx = response.IndexOf("assistant:", StringComparison.OrdinalIgnoreCase);
             if (idx >= 0) response = response.Substring(0, idx);
 
             return response.Trim();
+        }
+
+        private IReadOnlyList<int> AddBosTokenToList(IReadOnlyList<int> tokens)
+        {
+            var tokenswithBosTokenAtStartOfSequence = new List<int> { _tokenizer.Bos };
+
+            tokenswithBosTokenAtStartOfSequence.AddRange(tokens);
+
+            return tokenswithBosTokenAtStartOfSequence;
         }
     }
 }

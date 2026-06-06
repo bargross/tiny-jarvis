@@ -7,68 +7,49 @@ namespace Tiny.Jarvis.Tokenization
         private readonly Dictionary<string, double> _tokenLogProbabilities;
         private readonly Dictionary<int, string> _tokenToIdentifier;
         private readonly Dictionary<string, int> _identifierToToken;
+
         private readonly int _unknownTokenIdentifier;
         private const string UnknownToken = "[UNK]";
+        private const string BosToken = "[BOS]";
         private const double UnknownTokenLogProbability = -100.0;
         private readonly int _vocabularySize;
 
         public int VocabSize => _vocabularySize;
         public int Bos { get; } // Beginning of Sequence token ID
 
-        public UnigramTokenizer(IEnumerable<string> docs, int unknownTokenIdentifier = -1, int targetVocabularySize = 20)
+        public UnigramTokenizer(IEnumerable<string> docs, int targetVocabularySize = 20)
         {
-            _vocabularySize = targetVocabularySize;
-
+            // Train Unigram model to get token → log probability dictionary
             var tokenLogProbabilities = new UnigramTrainer().Train(docs, targetVocabularySize);
 
-            // 2. Build token-to-ID map (simple assignment)
-            int nextId = 1;
-            var tokenToIdU = tokenLogProbabilities.Keys
-                .OrderBy(t => t)
-                .Select((token, index) => new KeyValuePair<string, int>(token, index))
-                .ToDictionary();
+            // Add special tokens to the probability map (assign small log probs)
+            const double defaultLogProb = -15.0;  // low probability
 
-            if (tokenToIdU.Count > _vocabularySize) _vocabularySize = tokenToIdU.Count;
+            if (!tokenLogProbabilities.ContainsKey(UnknownToken))
+                tokenLogProbabilities[UnknownToken] = defaultLogProb;
+            if (!tokenLogProbabilities.ContainsKey(BosToken))
+                tokenLogProbabilities[BosToken] = defaultLogProb;
+
+            // Build deterministic list of all tokens (special tokens first, then sorted)
+            var allTokens = new List<string> { UnknownToken, BosToken };
+            allTokens.AddRange(tokenLogProbabilities.Keys
+                .Where(t => t != UnknownToken && t != BosToken)
+                .OrderBy(t => t));
+
+            // Assign consecutive IDs (UNK=0, BOS=1, then rest)
+            var identifierToToken = new Dictionary<string, int>();
+            for (int i = 0; i < allTokens.Count; i++)
+                identifierToToken[allTokens[i]] = i;
+
+            var tokenToIdentifier = identifierToToken.ToDictionary(kvp => kvp.Value, kvp => kvp.Key);
 
             _tokenLogProbabilities = tokenLogProbabilities;
-            _tokenToIdentifier = tokenToIdU.ToDictionary(kvp => kvp.Value, kvp => kvp.Key); ;
-            _unknownTokenIdentifier = unknownTokenIdentifier;
-            _identifierToToken = tokenToIdU;
-            Bos = _tokenToIdentifier.Count; // Assign BOS token ID at the beginning and end of the sequence.
-
-            if (!_identifierToToken.ContainsKey(UnknownToken))
-                _identifierToToken[UnknownToken] = unknownTokenIdentifier;
-
-            if (!_tokenToIdentifier.ContainsKey(unknownTokenIdentifier))
-                _tokenToIdentifier[unknownTokenIdentifier] = UnknownToken;
-
-            if (!_tokenLogProbabilities.ContainsKey(UnknownToken))
-                _tokenLogProbabilities[UnknownToken] = UnknownTokenLogProbability;
-
-            if (_tokenToIdentifier.Count > _vocabularySize)
-                _vocabularySize = _tokenToIdentifier.Count;
-
-            Bos = _vocabularySize - 1; // Add the Bos token at the beginning and end of the sequence.
-        }
-
-        public UnigramTokenizer(
-            Dictionary<string, double> tokenLogProbabilities,
-            Dictionary<string, int> identifierToToken,
-            int unknownTokenIdentifier)
-        {
-            _tokenLogProbabilities = tokenLogProbabilities;
-            _tokenToIdentifier = identifierToToken.ToDictionary(kvp => kvp.Value, kvp => kvp.Key); ;
-            _unknownTokenIdentifier = unknownTokenIdentifier;
             _identifierToToken = identifierToToken;
+            _tokenToIdentifier = tokenToIdentifier;
+            _unknownTokenIdentifier = identifierToToken[UnknownToken];
+            _vocabularySize = identifierToToken.Count;
 
-            if (!_identifierToToken.ContainsKey(UnknownToken))
-                _identifierToToken[UnknownToken] = unknownTokenIdentifier;
-
-            if (!_tokenToIdentifier.ContainsKey(unknownTokenIdentifier))
-                _tokenToIdentifier[unknownTokenIdentifier] = UnknownToken;
-
-            if (!_tokenLogProbabilities.ContainsKey(UnknownToken))
-                _tokenLogProbabilities[UnknownToken] = UnknownTokenLogProbability;
+            Bos = identifierToToken[BosToken];
         }
 
         public IReadOnlyList<int> Encode(string text)

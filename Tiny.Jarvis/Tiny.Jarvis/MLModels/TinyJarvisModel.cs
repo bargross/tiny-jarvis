@@ -15,6 +15,7 @@ public class TinyJarvisModel
     private readonly int _headCount;
     private readonly int _layerCount;
     private readonly int _headDimension;
+    private readonly int _vocabularySize;
 
     private Value[][] TokenEmbeddings => _stateDict["wte"];
     private Value[][] PositionEmbeddings => _stateDict["wpe"];
@@ -37,6 +38,7 @@ public class TinyJarvisModel
         _headCount = headCount;
         _layerCount = layerCount;
         _headDimension = embeddingSize / headCount;
+        _vocabularySize = vocabSize;
 
         _stateDict = new Dictionary<string, Value[][]>
         {
@@ -218,21 +220,22 @@ public class TinyJarvisModel
         double temperature = 1.0,
         int topK = 0,
         double topP = 1.0,
-        int? endTokenId = null)
+        int? endTokenId = null,
+        bool prependBos = true)
     {
         // Create fresh KV caches: one list per layer, each will store keys/values for every position
         var keys = CreateKvCache();   // List<List<Value>>[layerCount]
         var values = CreateKvCache();
 
-        // allIds will hold the full sequence (prompt + generated)
-        var allIds = new List<int>(tokens);
+        // promptTokens will hold the full sequence (prompt + generated)
+        var promptTokens = new List<int>();
 
         // This will store the logits returned by the last Forward call.
         // After processing the final prompt token, these logits represent predictions for the first new token.
         List<Value>? lastLogits = null;
 
         // Any name longer than maxSequenceLength - 1 is silently truncated here.
-        int tokenCount = Math.Min(MaxSequenceLength - 1, Math.Max(0, tokens.Count - 1));
+        int tokenCount = Math.Min(MaxSequenceLength - 1, tokens.Count);
 
         // ----- Feed the entire prompt (one token at a time) to fill the KV caches -----
         for (int posId = 0; posId < tokenCount; posId++)
@@ -241,7 +244,7 @@ public class TinyJarvisModel
 
             // Forward returns logits for the *next* token (position pos+1)
             lastLogits = Forward(tokenId, posId, keys, values);
-            // We ignore the logits from intermediate steps; only the final lastLogits matters.
+            // We ignore the logits from intermediate steps; only the final last Logits matters.
         }
 
         // currentPos tracks the index of the token we will feed next.
@@ -255,10 +258,14 @@ public class TinyJarvisModel
             int nextToken = Helpers.SampleToken(lastLogits, temperature, topK, topP);
 
             // Append the new token to our full sequence
-            allIds.Add(nextToken);
+            promptTokens.Add(nextToken);
 
             // If we hit the end-of-sequence token (if provided), stop generation
             if (endTokenId.HasValue && nextToken == endTokenId.Value)
+                break;
+
+            // prevent posId from exceeding available position embeddings
+            if (currentPos >= MaxSequenceLength)
                 break;
 
             // Feed the newly generated token to get logits for the *following* token.
@@ -269,7 +276,7 @@ public class TinyJarvisModel
         }
 
         // Return only the newly generated tokens (exclude the original prompt)
-        return allIds.Skip(tokens.Count).ToList();
+        return promptTokens.Skip(tokens.Count).ToList();
     }
 
     /// <summary>Creates a fresh KV cache for a new document/sample.</summary>

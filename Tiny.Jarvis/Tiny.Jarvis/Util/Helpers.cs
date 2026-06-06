@@ -17,7 +17,10 @@ public static class Helpers
     /// </summary>
     public static List<Value> Softmax(List<Value> logits)
     {
-        double maxVal = logits.Max(v => v.Data);
+        var maxVal = logits.Max(v => v.Data);
+        for (int i = 0; i < logits.Count; i++)
+            logits[i] = Math.Max(logits[i].Data, 1e-8);
+
         var exponentials = logits.Select(v => (v - maxVal).Exp()).ToList();
         var total = new Value(0);
         foreach (Value? e in exponentials)
@@ -141,5 +144,40 @@ public static class Helpers
         }
 
         return probs.Count - 1;
+    }
+
+    public static Value CrossEntropyLoss(List<Value> logits, int targetTokenId)
+    {
+        // Find the maximum logit for numerical stability (prevents overflow in exp)
+        var maxLogit = logits.Max(v => v.Data);
+
+        // Compute exponentiated logits (shifted by maxLogit) and their sum
+        var exponentiatedLogits = new double[logits.Count];
+        var sumOfExponentiatedLogits = 0.0;
+        for (int i = 0; i < logits.Count; i++)
+        {
+            exponentiatedLogits[i] = Math.Exp(logits[i].Data - maxLogit);
+            sumOfExponentiatedLogits += exponentiatedLogits[i];
+        }
+
+        // Compute softmax probabilities
+        var softmaxProbabilities = new double[logits.Count];
+        for (int i = 0; i < logits.Count; i++)
+            softmaxProbabilities[i] = exponentiatedLogits[i] / sumOfExponentiatedLogits;
+
+        // Extract the probability of the target token and compute negative log loss
+        var targetProbability = softmaxProbabilities[targetTokenId];
+        var clampedProbability = targetProbability < 1e-8 ? 1e-8 : targetProbability;
+        var lossValue = -Math.Log(clampedProbability);
+
+        // Prepare for backpropagation: local gradient of loss w.r.t each logit
+        //    d(loss)/d(logit_i) = softmaxProbability_i - (1 if i == target else 0)
+        Value[] inputLogitsArray = logits.ToArray();
+        var localGradients = new double[logits.Count];
+        for (int i = 0; i < logits.Count; i++)
+            localGradients[i] = softmaxProbabilities[i] - (i == targetTokenId ? 1.0 : 0.0);
+
+        // Return a single Value node that encapsulates the loss and its local gradients
+        return new Value(lossValue, inputLogitsArray, localGradients);
     }
 }

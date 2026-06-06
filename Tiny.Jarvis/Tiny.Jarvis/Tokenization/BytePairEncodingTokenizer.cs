@@ -8,7 +8,9 @@ namespace Tiny.Jarvis.Tokenization
         private readonly Dictionary<int, string> _tokenToIdentifier;
         private readonly List<(string Left, string Right)> _mergeRules;
         private readonly int _unknownTokenIdentifier;
-        private readonly string _unknownTokenString = "[UNK]";
+        private readonly string _unknownToken = "[UNK]";
+        private readonly string _bosToken = "[BOS]";
+
         private readonly int _vocabularySize;
 
         public int VocabSize => _vocabularySize;
@@ -16,38 +18,43 @@ namespace Tiny.Jarvis.Tokenization
 
         public BytePairEncodingTokenizer(IEnumerable<string> docs, int unknownTokenIdentifier = -1, int numberOfMerges = 5)
         {
-            var tokenizerTrainingData = docs.Select(text => new BytePairEncodingTrainer().Train(text, numberOfMerges)); // hard to track the token to identifier mapping across multiple documents, so we will merge them together in the next iteration
+            // Combine all documents into one large text (or pass as enumerable)
+            string allText = string.Join("\n", docs);
 
-            _tokenToIdentifier = tokenizerTrainingData.SelectMany(kv => kv.IdentifierToToken)
-                .GroupBy(kvp => kvp.Key)
-                .ToDictionary(kvp => kvp.First().Value, kvp => kvp.First().Key);
+            // Train BPE on the combined text (assuming the trainer can work on a single string)
+            var trainingResult = new BytePairEncodingTrainer().Train(allText, numberOfMerges);
+            // trainingResult should contain:
+            //   - Vocabulary (HashSet<string>) of all subword tokens
+            //   - MergeRules (List<(string,string)>)
 
-            _identifierToToken = _tokenToIdentifier.ToDictionary(kvp => kvp.Value, kvp => kvp.Key);
-            _mergeRules = tokenizerTrainingData.SelectMany(kv => kv.MergeRules).ToList();
+            // Build a set of all tokens from the trained vocabulary and add special tokens
+            var allTokensSet = new HashSet<string>(trainingResult.IdentifierToToken.Keys.ToList());
 
-            // Ensure unknown token exists in reverse map
-            if (!_tokenToIdentifier.ContainsKey(unknownTokenIdentifier))
-                _tokenToIdentifier[unknownTokenIdentifier] = _unknownTokenString;
+            allTokensSet.Add(_unknownToken);
+            allTokensSet.Add(_bosToken);
 
-            if (_tokenToIdentifier.Count > _vocabularySize)
-                _vocabularySize = _tokenToIdentifier.Count;
+            // Assign consecutive IDs, optionally forcing fixed IDs for special tokens like [UNK] and [BOS]
+            var identifierToToken = new Dictionary<string, int>();
+            identifierToToken[_unknownToken] = 0;
+            identifierToToken[_bosToken] = 1;
 
-            Bos = _vocabularySize - 1; // Add the Bos token at the beginning and end of the sequence.
-        }
+            int nextId = 2;
+            foreach (var token in allTokensSet.OrderBy(t => t))
+            {
+                if (token == _unknownToken || token == _bosToken)
+                    continue;
 
-        public BytePairEncodingTokenizer(
-            Dictionary<string, int> identifierToToken,
-            List<(string Left, string Right)> mergeRules,
-            int unknownTokenIdentifier)
-        {
-            _tokenToIdentifier = identifierToToken.ToDictionary(kvp => kvp.Value, kvp => kvp.Key);
-            _mergeRules = mergeRules;
-            _unknownTokenIdentifier = unknownTokenIdentifier;
+                identifierToToken[token] = nextId++;
+            }
+
+            // Build reverse mapping
+            var tokenToIdentifier = identifierToToken.ToDictionary(kvp => kvp.Value, kvp => kvp.Key);
+
+            // Store fields
             _identifierToToken = identifierToToken;
-
-            // Ensure unknown token exists in reverse map
-            if (!_tokenToIdentifier.ContainsKey(unknownTokenIdentifier))
-                _tokenToIdentifier[unknownTokenIdentifier] = _unknownTokenString;
+            _tokenToIdentifier = tokenToIdentifier;
+            _mergeRules = trainingResult.MergeRules; // or new List<(string,string)> if not provided
+            _vocabularySize = _identifierToToken.Count;
         }
 
         public IReadOnlyList<int> Encode(string text)
@@ -62,7 +69,7 @@ namespace Tiny.Jarvis.Tokenization
         public string Decode(IReadOnlyList<int> identifiers)
         {
             var tokens = identifiers
-                .Select(id => _tokenToIdentifier.GetValueOrDefault(id, _unknownTokenString))
+                .Select(id => _tokenToIdentifier.GetValueOrDefault(id, _unknownToken))
                 .ToList();
 
             // BPE typically uses a special token ("_") for spaces; here we assume spaces are preserved

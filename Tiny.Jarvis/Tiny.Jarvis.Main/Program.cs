@@ -46,7 +46,7 @@ void BeginChat()
             var docs = Document.LoadFromJson<BaggageQueryIntent>(filePath, random);
 
             // Train (or load) the model
-            var (_model, _tokenizer) = TinyJarvisModelTrainer.Train(docs.Select(doc => doc.ToString()).ToList(), tokenizerStrategy);
+            var (_model, _tokenizer) = TinyJarvisModelTrainer.Train(docs.Select(doc => doc.ToString()).ToList(), tokenizerStrategy, maxSequenceLength, maxNumberOfSteps);
 
             model = _model;
             tokenizer = _tokenizer;

@@ -8,12 +8,12 @@ namespace Tiny.Jarvis.Extensions
         // Convenience overload: allocates fresh buffers on each call.
         // Good for one-off use in the early chapters. The 3-argument version below
         // lets the training loop in Chapter 7 reuse buffers across thousands of steps.
-        public static void Backward(this Value value) => value.Backward([], [], new ConcurrentStack<(Value, int)>());
+        public static void Backward(this Value value) => value.Backward([], [], new Stack<(Value, int)>());
 
         public static void Backward(this Value value,
             List<Value> topo,
             HashSet<Value> visited,
-            ConcurrentStack<(Value current, int inputIndex)> stack
+            Stack<(Value current, int inputIndex)> stack
         )
         {
             // Stage 1: Iterative topological sort

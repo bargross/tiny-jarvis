@@ -25,7 +25,8 @@ public class Value(double data, Value[]? inputs = null, double[]? localGrads = n
 
     // -Infinity if Data == 0, NaN if Data < 0. If you see NaN propagating through
     // training, a softmax probability collapsed to 0 and this is usually the entry point.
-    public Value Log() => new(Math.Log(Data), [this], [1.0 / Data]);
+    // 1e-8 adds safety to the 
+    public Value Log() => new(Math.Log(Data), [this], [1.0 / (Data <= 0 ? 1e-8 : Data)]);
 
     public Value Exp() => new(Math.Exp(Data), [this], [Math.Exp(Data)]);
 
