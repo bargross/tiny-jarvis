@@ -4,6 +4,7 @@ using Tiny.Jarvis.MLModels;
 using Tiny.Jarvis.Models;
 using Tiny.Jarvis.Optimization;
 using Tiny.Jarvis.Tokenization;
+using Tiny.Jarvis.Training.Orchestrators;
 using Tiny.Jarvis.Util;
 
 namespace Tiny.Jarvis.Training.Trainers;
@@ -24,7 +25,7 @@ public static class TinyJarvisModelTrainer
 
         // ── Dataset and Tokenizer ────────────────────────────────
 
-        var tokenizer = SmartTokenizerGenerator.GetTokenizer(strategy, docs, vocabularySize);
+        var tokenizer = TokenizerGenerator.GetTokenizer(strategy, docs, vocabularySize);
 
         Console.WriteLine($"num docs: {docs.Count()}");
         Console.WriteLine($"vocab size: {tokenizer.VocabSize}");

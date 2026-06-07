@@ -7,7 +7,7 @@ using Tiny.Jarvis.Training.Trainers;
 using Tiny.Jarvis.Util;
 
 // docs, variables etc...
-var dirPathRef = "C:/Users/Leon/Documents/Projects/tiny-jarvis/Tiny.Jarvis/Assets";
+var dirPathRef = Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "Assets"));
 
 // begins the chat and continues until the user exits
 BeginChat();

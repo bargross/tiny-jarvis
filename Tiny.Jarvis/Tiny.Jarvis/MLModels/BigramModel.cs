@@ -1,5 +1,6 @@
 using System.Text;
 using Tiny.Jarvis.Tokenization;
+using Tiny.Jarvis.Training.Orchestrators;
 
 namespace Tiny.Jarvis.MLModels;
 
@@ -21,7 +22,7 @@ internal class BigramModel
 
     internal int[,] CountTransitions(List<string> docs)
     {
-        Tokenizer = SmartTokenizerGenerator.GetTokenizer(Enums.TokenizerStrategy.Simple, docs);
+        Tokenizer = TokenizerGenerator.GetTokenizer(Enums.TokenizerStrategy.Simple, docs);
         int vocabSize = Tokenizer.VocabSize;
         int[,] counts = new int[vocabSize, vocabSize];
 
