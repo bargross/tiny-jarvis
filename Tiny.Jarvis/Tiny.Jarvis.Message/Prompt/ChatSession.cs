@@ -40,12 +40,12 @@ namespace Tiny.Jarvis.Message.Prompt
                 var prompt = string.Join("\n", _history.Select(x => x.ToString())) + "\nassistant: ";
 
                 // Get encoded sequence with Bos at the beginning
-                var inputIds = _tokenizer.Encode(prompt);
+                var tokens = _tokenizer.Encode(prompt);
 
                 Console.WriteLine($"BOS token: {_tokenizer.BOS}");
-                Console.WriteLine($"tokens before Generate is called: {string.Join(",", inputIds)}");
+                Console.WriteLine($"tokens before Generate is called: {string.Join(",", tokens)}");
 
-                var responseTokens = _model.Generate(inputIds, maxNewTokens: 100, temperature: 0.8, topK: 50, topP: 0.95);
+                var responseTokens = _model.Generate(tokens, maxNewTokens: 100, temperature: 0.8, topK: 50, topP: 0.95);
 
                 Console.WriteLine($"Generated response tokens: {string.Join(",", responseTokens)}");
                 var response = _tokenizer.Decode(responseTokens);

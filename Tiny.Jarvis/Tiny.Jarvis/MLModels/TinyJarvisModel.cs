@@ -17,6 +17,7 @@ public class TinyJarvisModel
     private readonly int _headDimension;
     private readonly int _vocabularySize;
     private readonly int _bosToken;
+    private readonly int _endOfSequenceToken;
 
     private Value[][] TokenEmbeddings => _stateDict["wte"];
     private Value[][] PositionEmbeddings => _stateDict["wpe"];
@@ -33,6 +34,7 @@ public class TinyJarvisModel
         int layerCount,
         int maxSequenceLength,
         int bosToken,
+        int endOfSequenceToken,
         Random random
     )
     {
@@ -42,6 +44,7 @@ public class TinyJarvisModel
         _headDimension = embeddingSize / headCount;
         _vocabularySize = vocabSize;
         _bosToken = bosToken;
+        _endOfSequenceToken = endOfSequenceToken;
 
         _stateDict = new Dictionary<string, Value[][]>
         {
@@ -218,73 +221,68 @@ public class TinyJarvisModel
     /// <param name="endTokenId">If provided, stop generation when this token is produced.</param>
     /// <returns>List of newly generated token IDs (excluding the original prompt).</returns>
     public IReadOnlyList<int> Generate(
-        IReadOnlyList<int> tokens,
-        int maxNewTokens,
-        double temperature = 1.0,
-        int topK = 0,
-        double topP = 1.0,
-        int? endTokenId = null,
-        bool prependBos = true)
+    IReadOnlyList<int> tokens,
+    int maxNewTokens,
+    double temperature = 1.0,
+    int topK = 0,
+    double topP = 1.0,
+    bool prependBos = true)
     {
-        // Create fresh KV caches: one list per layer, each will store keys/values for every position
-        var keys = CreateKvCache();   // List<List<Value>>[layerCount]
+        // Copy the prompt to a mutable list and optionally prepend BOS
+        var allTokens = new List<int>(tokens);
+        if (prependBos && (allTokens.Count == 0 || allTokens[0] != _bosToken))
+        {
+            allTokens.Insert(0, _bosToken);
+        }
+
+        // Reserve at least one slot for generation, but don't go over MaxSequenceLength
+        int maxPromptTokens = MaxSequenceLength - 1; // leave room for at least one generated token
+        int tokenCount = Math.Min(maxPromptTokens, allTokens.Count);
+
+        // If the prompt is too long, you might want to truncate from the front, but here we just take the first tokenCount tokens.
+        if (tokenCount < allTokens.Count)
+        {
+            // Optional: log a warning that prompt was truncated
+            allTokens = allTokens.Take(tokenCount).ToList();
+        }
+
+        var keys = CreateKvCache();
         var values = CreateKvCache();
-
-        // promptTokens will hold the full sequence (prompt + generated)
-        var promptTokens = new List<int>();
-
-        // This will store the logits returned by the last Forward call.
-        // After processing the final prompt token, these logits represent predictions for the first new token.
         List<Value>? lastLogits = null;
 
-        if (prependBos && (tokens.Count == 0 || tokens[0] != _bosToken))
+        // Feed prompt tokens
+        for (int pos = 0; pos < tokenCount; pos++)
         {
-            tokens = new List<int> {  }.Concat(tokens).ToList();
+            lastLogits = Forward(allTokens[pos], pos, keys, values);
         }
 
-        // Any name longer than maxSequenceLength - 1 is silently truncated here.
-        int tokenCount = Math.Min(MaxSequenceLength - 1, tokens.Count);
-
-        // ----- Feed the entire prompt (one token at a time) to fill the KV caches -----
-        for (int posId = 0; posId < tokenCount; posId++)
-        {
-            int tokenId = tokens[posId];
-
-            // Forward returns logits for the *next* token (position pos+1)
-            lastLogits = Forward(tokenId, posId, keys, values);
-            // We ignore the logits from intermediate steps; only the final last Logits matters.
-        }
-
-        // currentPos tracks the index of the token we will feed next.
-        // After the prompt, the next position to fill is at index inputIds.Count.
         int currentPos = tokenCount;
+        var generated = new List<int>();
 
-        // ----- Generate new tokens -----
         for (int step = 0; step < maxNewTokens; step++)
         {
-            // Sample the next token ID using the configured sampling strategy
+            // Ensure we have logits (should never be null if tokenCount > 0)
+            if (lastLogits == null) break;
+
             int nextToken = Helpers.SampleToken(lastLogits, temperature, topK, topP);
 
-            // Append the new token to our full sequence
-            promptTokens.Add(nextToken);
+            generated.Add(nextToken);
+            allTokens.Add(nextToken);
 
-            // If we hit the end-of-sequence token (if provided), stop generation
-            if (endTokenId.HasValue && nextToken == endTokenId.Value)
+            if (nextToken == _endOfSequenceToken)
                 break;
 
-            // prevent posId from exceeding available position embeddings
-            if (currentPos >= MaxSequenceLength)
+            // -1 because we need to leave room? Actually we can use up to MaxSequenceLength-1 for feeding the token itself.
+            if (currentPos >= maxPromptTokens) 
+            {
                 break;
+            }
 
-            // Feed the newly generated token to get logits for the *following* token.
-            // Position is currentPos because that's the index this token occupies.
-            // The returned logits will predict the token at currentPos+1.
             lastLogits = Forward(nextToken, currentPos, keys, values);
             currentPos++;
         }
 
-        // Return only the newly generated tokens (exclude the original prompt)
-        return promptTokens.Skip(tokens.Count).ToList();
+        return generated; // or return allTokens.Skip(originalPromptLength)
     }
 
     /// <summary>Creates a fresh KV cache for a new document/sample.</summary>

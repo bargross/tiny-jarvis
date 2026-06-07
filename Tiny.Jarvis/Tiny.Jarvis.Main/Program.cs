@@ -23,10 +23,10 @@ void BeginChat()
     var tokenizerStrategy = TokenizerStrategy.WordPiece;
 
      // set this based on the average length of your documents (in tokens) - it controls the context window size for the model, so longer is generally better for performance but increases training time and memory usage
-    var maxSequenceLength = 15;
+    var maxSequenceLength = 64;
 
     // TODO: it might be worth trying different values for different tokenizers to see if some converge faster than others (e.g. character-level tokenizers will likely require more steps than word-level ones)
-    var maxNumberOfSteps = 20000; // increase this for better performance - the optimal number depends on the size of your dataset and the complexity of the task
+    var maxNumberOfSteps = 30000; // increase this for better performance - the optimal number depends on the size of your dataset and the complexity of the task
     if (format == "json")
     {
         var trainingDocsName = Path.GetFileNameWithoutExtension(filePath);
@@ -35,7 +35,7 @@ void BeginChat()
             var docs = Document.LoadFromJson<TitanicPassenger>(filePath, random);
 
             // Train (or load) the model
-            var (_model, _tokenizer) = TinyJarvisModelTrainer.Train(docs.Select(doc => doc.ToString()).ToList(), tokenizerStrategy, maxSequenceLength, maxNumberOfSteps);
+            var (_model, _tokenizer) = TinyJarvisModelTrainer.Train(docs.Select(doc => doc.ToString()), tokenizerStrategy, maxSequenceLength, maxNumberOfSteps);
 
             model = _model;
             tokenizer = _tokenizer;
@@ -46,7 +46,7 @@ void BeginChat()
             var docs = Document.LoadFromJson<BaggageQueryIntent>(filePath, random);
 
             // Train (or load) the model
-            var (_model, _tokenizer) = TinyJarvisModelTrainer.Train(docs.Select(doc => doc.ToString()).ToList(), tokenizerStrategy, maxSequenceLength, maxNumberOfSteps);
+            var (_model, _tokenizer) = TinyJarvisModelTrainer.Train(docs.Select(doc => doc.ToString()), tokenizerStrategy, maxSequenceLength, maxNumberOfSteps);
 
             model = _model;
             tokenizer = _tokenizer;
@@ -57,7 +57,7 @@ void BeginChat()
         var docs = Document.LoadFromFile(filePath, random);
 
         // Train (or load) the model
-        var (_model, _tokenizer) = TinyJarvisModelTrainer.Train(docs.Select(doc => doc.ToString()).ToList(), tokenizerStrategy, maxSequenceLength, maxNumberOfSteps);
+        var (_model, _tokenizer) = TinyJarvisModelTrainer.Train(docs.Select(doc => doc.ToString()), tokenizerStrategy, maxSequenceLength, maxNumberOfSteps);
 
         model = _model;
         tokenizer = _tokenizer;
@@ -76,10 +76,10 @@ string SelectTrainingFile(string pathToDir)
     var filesAvailable = new DirectoryInfo(pathToDir)
     .GetFiles("*", new EnumerationOptions
     {
-        RecurseSubdirectories = false,   // since all files are in same dir
-        AttributesToSkip = FileAttributes.None,  // don't skip hidden/system
-        IgnoreInaccessible = false,      // throw if can't read (to see error)
-        MatchType = MatchType.Simple,    // disable complex pattern matching
+        RecurseSubdirectories = false,
+        AttributesToSkip = FileAttributes.None,
+        IgnoreInaccessible = false,
+        MatchType = MatchType.Simple,
         ReturnSpecialDirectories = false
     })
     .Select(fp => fp.FullName)
@@ -94,9 +94,8 @@ string SelectTrainingFile(string pathToDir)
     }
 
     Console.WriteLine(Environment.NewLine);
-    Console.Write("User: ");
+    Console.Write("Enter File Number: ");
     var userInput = Console.ReadLine();
-    //var resultParsed = int.TryParse(userInput, out var index);
 
     if (!int.TryParse(userInput, out var index))
     {

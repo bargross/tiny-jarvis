@@ -44,7 +44,9 @@ namespace Tiny.Jarvis.Message.Prompt
 
             Console.WriteLine("End chant? (y/n)");
             
-            var userInput = ChatInput.GetUserInput(history);
+            var userInput = ChatInput.GetUserInput();
+
+            history.Add(endMessage);
 
             var inputResponse = userInput.Content.Trim().ToLower();
             if (inputResponse == "y")

@@ -1,4 +1,3 @@
-using System.Collections.Concurrent;
 using Tiny.Jarvis.Enums;
 using Tiny.Jarvis.Extensions;
 using Tiny.Jarvis.MLModels;
@@ -16,14 +15,16 @@ public static class TinyJarvisModelTrainer
         // ── Hyperparameters ──────────────────────────────────────
 
         int embeddingSize = 16;
-        int layerCount = 2; // just one transformer block for speed - try layerCount=2 to see improvement
+        int layerCount = 4; // just one transformer block for speed - try layerCount=2 to see improvement
         int headCount = 4;
         var learningRate = 1e-2;
+        var vocabularySize = 1024;
         var random = new Random(42);
+        var startTime = DateTime.UtcNow;
 
         // ── Dataset and Tokenizer ────────────────────────────────
 
-        var tokenizer = SmartTokenizerGenerator.GetTokenizer(strategy, docs);
+        var tokenizer = SmartTokenizerGenerator.GetTokenizer(strategy, docs, vocabularySize);
 
         Console.WriteLine($"num docs: {docs.Count()}");
         Console.WriteLine($"vocab size: {tokenizer.VocabSize}");
@@ -37,6 +38,7 @@ public static class TinyJarvisModelTrainer
             layerCount,
             maxSequenceLength,
             tokenizer.BOS, // give it the bos token to use later when using Generate
+            tokenizer.EOS, // eos tokent o signal end of function
             random
         );
 
@@ -85,17 +87,15 @@ public static class TinyJarvisModelTrainer
                 var index = posId + 1;
                 if (index < 0) continue;
 
-                loss += Helpers.CrossEntropyLoss(logits, tokens[posId + 1]);
+                loss += Helpers.CrossEntropyLoss(logits, tokens[index]);
             }
 
             loss *= 1.0 / tokenCount;
 
             // Track running average (exponential moving average with alpha = 0.01)
             avgLoss = step == 0 ? loss.Data : 0.99 * avgLoss + 0.01 * loss.Data;
-            if (step == 0)
-            {
-                lastMilestoneLoss = avgLoss;
-            }
+            
+            if (step == 0) lastMilestoneLoss = avgLoss;
 
             optimiser.ZeroGrad();
 
@@ -128,6 +128,15 @@ public static class TinyJarvisModelTrainer
             }
 
         }
+
+        var endTime = DateTime.UtcNow;
+        var hoursDiff = startTime.Hour - endTime.Hour;
+        var minutesDiff = startTime.Minute - endTime.Minute;
+        var secondsDiff = startTime.Second - endTime.Second;
+
+        Console.WriteLine($"Start time: {startTime}");
+        Console.WriteLine($"End of training at: {endTime}");
+        Console.WriteLine($"Training was completed in: {hoursDiff}H {minutesDiff}m {secondsDiff}s");
 
         return (model, tokenizer);
     }
