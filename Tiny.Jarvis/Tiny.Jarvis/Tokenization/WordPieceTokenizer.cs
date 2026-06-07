@@ -72,13 +72,10 @@ namespace Tiny.Jarvis.Tokenization
                 {
                     if (result.Any())
                         result[result.Count - 1] += token.Substring(_subwordPrefix.Length);
-                    else
-                        result.Add(token.Substring(_subwordPrefix.Length));
+                    
+                    else result.Add(token.Substring(_subwordPrefix.Length));
                 }
-                else
-                {
-                    result.Add(token);
-                }
+                else result.Add(token);
             }
             return string.Join("", result);
         }
@@ -96,7 +93,9 @@ namespace Tiny.Jarvis.Tokenization
             if (bestToken != null)
             {
                 yield return bestToken;
-                string next = remainingText.Substring(bestToken.Length);
+
+                var next = remainingText.Substring(bestToken.Length);
+
                 foreach (var token in SegmentWordByLongestMatch(next))
                     yield return token;
             }
@@ -104,6 +103,7 @@ namespace Tiny.Jarvis.Tokenization
             {
                 // No token matches – use unknown token and advance one character
                 yield return _unknownToken;
+
                 foreach (var token in SegmentWordByLongestMatch(remainingText.Substring(1)))
                     yield return token;
             }

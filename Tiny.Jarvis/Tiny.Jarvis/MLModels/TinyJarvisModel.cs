@@ -6,10 +6,6 @@ namespace Tiny.Jarvis.MLModels;
 
 public class TinyJarvisModel
 {
-    // The state dict keys follow PyTorch / GPT-2 convention (wte = weight token embedding,
-    // wpe = weight position embedding, etc.) so this code can map directly to PyTorch
-    // checkpoints if you ever want to load real GPT-2 weights. The aliased properties
-    // below give us readable C# names to use inside Forward without losing that bridge.
     private readonly Dictionary<string, Value[][]> _stateDict;
     private readonly int _embeddingSize;
     private readonly int _headCount;
@@ -53,22 +49,19 @@ public class TinyJarvisModel
             ["lm_head"] = Helpers.CreateMatrix(random, vocabSize, embeddingSize),
         };
 
-        for (int i = 0; i < layerCount; i++)
+        for (int layerIndex = 0; layerIndex < layerCount; layerIndex++)
         {
-            _stateDict[$"layer{i}.attn_wq"] = Helpers.CreateMatrix(random, embeddingSize, embeddingSize);
-            _stateDict[$"layer{i}.attn_wk"] = Helpers.CreateMatrix(random, embeddingSize, embeddingSize);
-            _stateDict[$"layer{i}.attn_wv"] = Helpers.CreateMatrix(random, embeddingSize, embeddingSize);
-            _stateDict[$"layer{i}.attn_wo"] = Helpers.CreateMatrix(random, embeddingSize, embeddingSize);
-            _stateDict[$"layer{i}.mlp_fc1"] = Helpers.CreateMatrix(
-                random,
-                4 * embeddingSize,
-                embeddingSize
-            );  
-            _stateDict[$"layer{i}.mlp_fc2"] = Helpers.CreateMatrix(
-                random,
-                embeddingSize,
-                4 * embeddingSize
-            );
+            // Attention weight matrices (Query, Key, Value, Output)
+            _stateDict[$"layer{layerIndex}.attn_wq"] = Helpers.CreateMatrix(random, embeddingSize, embeddingSize);
+            _stateDict[$"layer{layerIndex}.attn_wk"] = Helpers.CreateMatrix(random, embeddingSize, embeddingSize);
+            _stateDict[$"layer{layerIndex}.attn_wv"] = Helpers.CreateMatrix(random, embeddingSize, embeddingSize);
+            _stateDict[$"layer{layerIndex}.attn_wo"] = Helpers.CreateMatrix(random, embeddingSize, embeddingSize);
+
+            // Feed‑forward network (first layer expands by factor 4, second contracts back)
+            int expandedSize = 4 * embeddingSize;
+
+            _stateDict[$"layer{layerIndex}.mlp_fc1"] = Helpers.CreateMatrix(random, expandedSize, embeddingSize);
+            _stateDict[$"layer{layerIndex}.mlp_fc2"] = Helpers.CreateMatrix(random, embeddingSize, expandedSize);
         }
 
         MaxSequenceLength = maxSequenceLength;
@@ -123,72 +116,68 @@ public class TinyJarvisModel
     // Attention wrapped with pre-norm and a residual connection.
     // Mutates keys[layerIndex] and values[layerIndex] by appending the current position's K and V.
     private List<Value> AttentionBlock(
-        List<Value> probabilities,
+        List<Value> hiddenState,
         int layerIndex,
-        List<List<Value>>[] keys,
-        List<List<Value>>[] values
-    )
+        List<List<Value>>[] keysCache,
+        List<List<Value>>[] valuesCache)
     {
-        var xResidual = new List<Value>(probabilities);
-        probabilities = Helpers.RmsNorm(probabilities);
+        // Save input for residual connection later
+        var residualConnection = new List<Value>(hiddenState);
+        hiddenState = Helpers.RmsNorm(hiddenState);
 
-        List<Value> query = Helpers.Linear(probabilities, _stateDict[$"layer{layerIndex}.attn_wq"]);
-        List<Value> key = Helpers.Linear(probabilities, _stateDict[$"layer{layerIndex}.attn_wk"]);
-        List<Value> value = Helpers.Linear(probabilities, _stateDict[$"layer{layerIndex}.attn_wv"]);
+        // Compute Query, Key, Value projections
+        var queryProjection = Helpers.Linear(hiddenState, _stateDict[$"layer{layerIndex}.attn_wq"]);
+        var keyProjection = Helpers.Linear(hiddenState, _stateDict[$"layer{layerIndex}.attn_wk"]);
+        var valueProjection = Helpers.Linear(hiddenState, _stateDict[$"layer{layerIndex}.attn_wv"]);
 
-        keys[layerIndex].Add(key);
-        values[layerIndex].Add(value);
+        // Store current Key and Value in caches (for autoregressive generation)
+        keysCache[layerIndex].Add(keyProjection);
+        valuesCache[layerIndex].Add(valueProjection);
 
-        var concatenatedHeads = new List<Value>();
-        for (int count = 0; count < _headCount; count++)
+        // Multi‑head attention: process each head independently
+        var concatenatedHeadOutputs = new List<Value>();
+        for (int headIndex = 0; headIndex < _headCount; headIndex++)
         {
-            int headStart = count * _headDimension;
-            List<Value> queryForHead = query.GetRange(headStart, _headDimension);
+            int headStartIndex = headIndex * _headDimension;
+            var queryForHead = queryProjection.GetRange(headStartIndex, _headDimension);
 
+            // Compute scaled dot‑product attention scores against all past keys
             var attentionLogits = new List<Value>();
-            int cachedCount = keys[layerIndex].Count;
-            for (int t = 0; t < cachedCount; t++)
+            int cachedPositionsCount = keysCache[layerIndex].Count;
+            for (int pastPosition = 0; pastPosition < cachedPositionsCount; pastPosition++)
             {
-                List<Value> keyForHead = keys[layerIndex][t].GetRange(headStart, _headDimension);
-                var dot = new Value(0);
-                for (int j = 0; j < _headDimension; j++)
-                {
-                    dot += queryForHead[j] * keyForHead[j];
-                }
-
-                attentionLogits.Add(dot / Math.Sqrt(_headDimension));
+                var keyForHead = keysCache[layerIndex][pastPosition].GetRange(headStartIndex, _headDimension);
+                var dotProduct = new Value(0);
+                for (int dimension = 0; dimension < _headDimension; dimension++)
+                    dotProduct += queryForHead[dimension] * keyForHead[dimension];
+                attentionLogits.Add(dotProduct / Math.Sqrt(_headDimension));
             }
 
-            List<Value> attentionWeights = Helpers.Softmax(attentionLogits);
+            // Convert logits to probabilities
+            var attentionWeights = Helpers.Softmax(attentionLogits);
 
-            var headOutput = new List<Value>();
-            for (int j = 0; j < _headDimension; j++)
+            // Weighted sum of values (this head's output)
+            var headOutputValues = new List<Value>();
+            for (int dimension = 0; dimension < _headDimension; dimension++)
+                headOutputValues.Add(new Value(0));
+
+            for (int pastPosition = 0; pastPosition < cachedPositionsCount; pastPosition++)
             {
-                headOutput.Add(new Value(0));
+                var valueForHead = valuesCache[layerIndex][pastPosition].GetRange(headStartIndex, _headDimension);
+                var weight = attentionWeights[pastPosition];
+                for (int dimension = 0; dimension < _headDimension; dimension++)
+                    headOutputValues[dimension] += weight * valueForHead[dimension];
             }
 
-            for (int dimension = 0; dimension < cachedCount; dimension++)
-            {
-                List<Value> valueForHead = values[layerIndex][dimension]
-                    .GetRange(headStart, _headDimension);
-
-                Value weight = attentionWeights[dimension];
-                for (int idx = 0; idx < _headDimension; idx++)
-                {
-                    headOutput[idx] += weight * valueForHead[idx];
-                }
-            }
-
-            concatenatedHeads.AddRange(headOutput);
+            concatenatedHeadOutputs.AddRange(headOutputValues);
         }
 
-        probabilities = Helpers.Linear(concatenatedHeads, _stateDict[$"layer{layerIndex}.attn_wo"]);
-        for (int i = 0; i < _embeddingSize; i++)
-        {
-            probabilities[i] += xResidual[i];
-        }
+        // Final linear projection and residual connection
+        var attentionOutput = Helpers.Linear(concatenatedHeadOutputs, _stateDict[$"layer{layerIndex}.attn_wo"]);
+        for (int dimensionIndex = 0; dimensionIndex < _embeddingSize; dimensionIndex++)
+            attentionOutput[dimensionIndex] += residualConnection[dimensionIndex];
 
-        return probabilities;
+        return attentionOutput;
     }
 
     // Two-layer feed-forward with ReLU, wrapped with pre-norm and a residual connection.

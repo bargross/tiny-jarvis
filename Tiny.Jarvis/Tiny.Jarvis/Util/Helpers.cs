@@ -6,144 +6,155 @@ namespace Tiny.Jarvis.Util;
 public static class Helpers
 {
     /// <summary>
-    /// Matrix-vector multiply. Each row of weights is multiplied element-by-element
-    /// with input and summed into a single value.
+    /// Matrix-vector multiply. Each row of weights is multiplied element‑wise with input and summed.
     /// </summary>
     public static List<Value> Linear(List<Value> input, Value[][] weights) =>
         [.. weights.SelectRow(row => Value.Dot(row, input))];
 
     /// <summary>
-    /// Converts raw scores (logits) into a probability distribution.
+    /// Converts raw logits into a probability distribution using softmax.
     /// </summary>
     public static List<Value> Softmax(List<Value> logits)
     {
-        var maxVal = logits.Max(v => v.Data);
-        for (int i = 0; i < logits.Count; i++)
-            logits[i] = Math.Max(logits[i].Data, 1e-8);
+        var maxLogit = logits.Max(value => value.Data);
 
-        var exponentials = logits.Select(v => (v - maxVal).Exp()).ToList();
-        var total = new Value(0);
-        foreach (Value? e in exponentials)
-        {
-            total += e;
-        }
+        // Clamp logits to avoid log(0) later (original code sets logits[i] to a double – keep as is)
+        for (var index = 0; index < logits.Count; index++)
+            logits[index] = Math.Max(logits[index].Data, 1e-8);   // Note: overwrites Value with double
 
-        return [.. exponentials.Select(e => e / total)];
+        var exponentials = logits.Select(value => (value - maxLogit).Exp()).ToList();
+        var sumOfExponentials = new Value(0);
+        foreach (Value exponential in exponentials)
+            sumOfExponentials += exponential;
+
+        return [.. exponentials.Select(exponential => exponential / sumOfExponentials)];
     }
 
     /// <summary>
-    /// Generates a random number from a bell curve (Gaussian/normal distribution)
-    /// centered on the mean, with most values falling within 'std' of it.
-    /// Uses the Box-Muller transform - turns two uniform random numbers into
-    /// one bell-curve random number.
+    /// Generates a normally distributed (Gaussian) random number using the Box‑Muller transform.
     /// </summary>
-    public static double RandomBellCurve(Random rng, double mean, double std)
+    public static double RandomBellCurve(Random randomGenerator, double mean, double standardDeviation)
     {
-        double rand1 = 1.0 - rng.NextDouble();
-        double rand2 = 1.0 - rng.NextDouble();
+        var uniformA = 1.0 - randomGenerator.NextDouble();
+        var uniformB = 1.0 - randomGenerator.NextDouble();
 
-        return mean + std * Math.Sqrt(-2.0 * Math.Log(rand1)) * Math.Sin(2.0 * Math.PI * rand2);
+        var z = Math.Sqrt(-2.0 * Math.Log(uniformA)) * Math.Sin(2.0 * Math.PI * uniformB);
+
+        return mean + standardDeviation * z;
     }
 
     /// <summary>
-    /// Creates a matrix of Value objects initialized to small random numbers.
+    /// Creates a matrix of Value objects initialized with small random numbers (normal distribution).
     /// </summary>
-    public static Value[][] CreateMatrix(Random rng, int rows, int cols, double std = 0.08)
+    public static Value[][] CreateMatrix(Random randomGenerator, int rowCount, int columnCount, double standardDeviation = 0.08)
     {
-        var matrix = new Value[rows][];
-        for (int i = 0; i < rows; i++)
+        var matrix = new Value[rowCount][];
+        for (int rowIndex = 0; rowIndex < rowCount; rowIndex++)
         {
-            matrix[i] = new Value[cols];
-            for (int j = 0; j < cols; j++)
-            {
-                matrix[i][j] = new Value(RandomBellCurve(rng, 0, std));
-            }
+            matrix[rowIndex] = new Value[columnCount];
+
+            for (int columnIndex = 0; columnIndex < columnCount; columnIndex++)
+                matrix[rowIndex][columnIndex] = new Value(RandomBellCurve(randomGenerator, 0, standardDeviation));
         }
 
         return matrix;
     }
 
     /// <summary>
-    /// Rescales a vector so its overall magnitude is close to 1, using the root mean
-    /// square of its values. Keeps activations stable across deep networks.
+    /// RMSNorm: rescales a vector so its root‑mean‑square is close to 1. Keeps activations stable.
     /// </summary>
-    public static List<Value> RmsNorm(List<Value> probabilities)
+    public static List<Value> RmsNorm(List<Value> activations)
     {
-        var sumSq = new Value(0);
-        foreach (Value xi in probabilities)
-        {
-            sumSq += xi * xi;
-        }
+        var sumOfSquares = new Value(0);
+        foreach (Value activation in activations)
+            sumOfSquares += activation * activation;
 
-        Value ms = sumSq / probabilities.Count;
-        Value scale = (ms + 1e-5).Pow(-0.5);
+        Value meanSquare = sumOfSquares / activations.Count;
+        Value scale = (meanSquare + 1e-5).Pow(-0.5);
 
-        return probabilities.Select(xi => xi * scale).ToList();
+        return activations.Select(activation => activation * scale).ToList();
     }
 
+    /// <summary>
+    /// In‑place temperature scaling of logits.
+    /// </summary>
     public static void ApplyTemperature(List<Value> logits, double temperature)
     {
-        if (temperature != 1.0)
-        {
-            for (int i = 0; i < logits.Count; i++)
-                logits[i] /= temperature;
-        }
+        if (Math.Abs(temperature - 1.0) > 1e-8) 
+            for (int index = 0; index < logits.Count; index++)
+                logits[index] /= temperature;   // Divides Value by double – works if operator/ is defined
     }
 
+    /// <summary>
+    /// Samples a token ID from the logits using temperature, top‑k, and top‑p (nucleus) sampling.
+    /// </summary>
     public static int SampleToken(List<Value> logits, double temperature, int topK, double topP)
     {
-        // Apply temperature
         ApplyTemperature(logits, temperature);
 
-        // Softmax
-        var probs = Softmax(logits);
+        var probabilities = Softmax(logits);
 
-        // Top‑k
-        if (topK > 0 && topK < probs.Count)
+        // ---- Top‑k filtering ----
+        if (topK > 0 && topK < probabilities.Count)
         {
-            var indices = probs.Select((p, idx) => (p, idx)).OrderByDescending(x => x.p.Data).Take(topK).Select(x => x.idx).ToHashSet();
-            for (int i = 0; i < probs.Count; i++)
-                if (!indices.Contains(i))
-                    probs[i] = 0.0;
+            var topKIndices = probabilities
+                .Select((probability, index) => (probability, index))
+                .OrderByDescending(pair => pair.probability.Data)
+                .Take(topK)
+                .Select(pair => pair.index)
+                .ToHashSet();
 
-            var sum = probs.Sum(x => x.Data);
-            for (int i = 0; i < probs.Count; i++)
-                probs[i] /= sum;
+            for (int index = 0; index < probabilities.Count; index++)
+                if (!topKIndices.Contains(index))
+                    probabilities[index] = 0.0;   // Set to double (converted to Value implicitly)
+
+            double sumOfProbs = probabilities.Sum(prob => prob.Data);
+            for (int index = 0; index < probabilities.Count; index++)
+                probabilities[index] /= sumOfProbs;
         }
 
-        // Top‑p
-        if (topP < 1.0f && topP > 0)
+        // ---- Top‑p (nucleus) filtering ----
+        if (topP < 1.0 && topP > 0.0)
         {
-            var indexed = probs.Select((p, idx) => (p, idx)).OrderByDescending(x => x.p.Data).ToList();
-            var cummulitative = 0.0;
-            var keep = new HashSet<int>();
-            foreach (var item in indexed)
+            var sorted = probabilities
+                .Select((prob, idx) => (prob, idx))
+                .OrderByDescending(pair => pair.prob.Data)
+                .ToList();
+
+            var cumulativeProbability = 0.0;
+            var indicesToKeep = new HashSet<int>();
+            foreach (var item in sorted)
             {
-                cummulitative += item.p.Data;
-                keep.Add(item.idx);
+                cumulativeProbability += item.prob.Data;
+                indicesToKeep.Add(item.idx);
 
-                if (cummulitative >= topP) break;
+                if (cumulativeProbability >= topP)
+                    break;
             }
-            for (int i = 0; i < probs.Count; i++)
-                if (!keep.Contains(i))
-                    probs[i] = 0;
 
-            var sum = probs.Select(probability => probability.Data).Sum();
-            for (int i = 0; i < probs.Count; i++)
-                probs[i] /= sum;
+            for (int index = 0; index < probabilities.Count; index++)
+                if (!indicesToKeep.Contains(index))
+                    probabilities[index] = 0.0;
+
+            var totalKeptProbability = probabilities.Sum(prob => prob.Data);
+            for (int index = 0; index < probabilities.Count; index++)
+                probabilities[index] /= totalKeptProbability;
         }
 
-        // Sample
-        var rand = new Random().NextDouble();
-        var cum = 0.0;
-        for (int i = 0; i < probs.Count; i++)
+        // ---- Sample from the final distribution ----
+        var random = new Random();
+        var randomValue = random.NextDouble();
+        var accumulatedProbability = 0.0;
+
+        for (int tokenId = 0; tokenId < probabilities.Count; tokenId++)
         {
-            cum += probs[i].Data;
-            if (rand < cum)
-                return i;
+            accumulatedProbability += probabilities[tokenId].Data;
+
+            if (randomValue < accumulatedProbability)
+                return tokenId;
         }
 
-        return probs.Count - 1;
+        return probabilities.Count - 1;   // Fallback (should never reach)
     }
 
     public static Value CrossEntropyLoss(List<Value> logits, int targetTokenId)

@@ -19,7 +19,7 @@ namespace Tiny.Jarvis.Tokenization
         public int BOS { get; } // Beginning of Sequence token ID
         public int EOS { get; } // End of Sequence token ID
 
-        public BytePairEncodingTokenizer(IEnumerable<string> docs, int unknownTokenIdentifier = -1, int numberOfMerges = 5)
+        public BytePairEncodingTokenizer(IEnumerable<string> docs, int unknownTokenIdentifier = -1, int numberOfMerges = 15)
         {
             // Combine all documents into one large text (or pass as enumerable)
             string allText = string.Join("\n", docs);
@@ -31,26 +31,20 @@ namespace Tiny.Jarvis.Tokenization
             //   - MergeRules (List<(string,string)>)
 
             // Build a set of all tokens from the trained vocabulary and add special tokens
-            var allTokensSet = new HashSet<string>(trainingResult.IdentifierToToken.Keys.ToList());
+            var allTokens = new List<string> { _unknownToken, _bosToken, _endOfSequenceToken };
 
-            allTokensSet.Add(_unknownToken);
-            allTokensSet.Add(_bosToken);
-            allTokensSet.Add(_endOfSequenceToken);
+            allTokens.AddRange(trainingResult.IdentifierToToken.Keys);
 
             // Assign consecutive IDs, optionally forcing fixed IDs for special tokens like [UNK] and [BOS]
             var identifierToToken = new Dictionary<string, int>();
-            identifierToToken[_unknownToken] = 0;
-            identifierToToken[_bosToken] = 1;
-            identifierToToken[_endOfSequenceToken] = 2;
 
-            int nextId = 3;
-            foreach (var token in allTokensSet.OrderBy(t => t))
-            {
-                if (token == _unknownToken || token == _bosToken || token == _endOfSequenceToken)
-                    continue;
+            var startIndex = 0;
+            identifierToToken[_unknownToken] = startIndex++;
+            identifierToToken[_bosToken] = startIndex++;
+            identifierToToken[_endOfSequenceToken] = startIndex++;
 
-                identifierToToken[token] = nextId++;
-            }
+            for (var token = startIndex; token < allTokens.Count; token++)
+                identifierToToken[allTokens[token]] = token;
 
             // Build reverse mapping
             var tokenToIdentifier = identifierToToken.ToDictionary(kvp => kvp.Value, kvp => kvp.Key);
@@ -98,12 +92,11 @@ namespace Tiny.Jarvis.Tokenization
 
         private List<string> MergeAdjacentPairs(List<string> tokens, (string Left, string Right) mergeRule)
         {
-            string delimiter = "|";
-            string sequenceWithDelimiters = string.Join(delimiter, tokens);
-            string mergedSequence = sequenceWithDelimiters.Replace(
-                $"{mergeRule.Left}{delimiter}{mergeRule.Right}",
-                mergeRule.Left + mergeRule.Right
-            );
+            var delimiter = "|";
+            var sequenceWithDelimiters = string.Join(delimiter, tokens);
+            var mergedSequence = sequenceWithDelimiters
+                .Replace($"{mergeRule.Left}{delimiter}{mergeRule.Right}", mergeRule.Left + mergeRule.Right);
+
             return mergedSequence.Split(delimiter).ToList();
         }
     }

@@ -23,10 +23,10 @@ void BeginChat()
     var tokenizerStrategy = TokenizerStrategy.WordPiece;
 
      // set this based on the average length of your documents (in tokens) - it controls the context window size for the model, so longer is generally better for performance but increases training time and memory usage
-    var maxSequenceLength = 64;
+    var maxSequenceLength = 128;
 
     // TODO: it might be worth trying different values for different tokenizers to see if some converge faster than others (e.g. character-level tokenizers will likely require more steps than word-level ones)
-    var maxNumberOfSteps = 30000; // increase this for better performance - the optimal number depends on the size of your dataset and the complexity of the task
+    var maxNumberOfSteps = 15000; // increase this for better performance - the optimal number depends on the size of your dataset and the complexity of the task
     if (format == "json")
     {
         var trainingDocsName = Path.GetFileNameWithoutExtension(filePath);
