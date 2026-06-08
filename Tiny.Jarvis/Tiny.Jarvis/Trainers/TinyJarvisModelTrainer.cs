@@ -15,9 +15,9 @@ public static class TinyJarvisModelTrainer
     {        
         // ── Hyperparameters ──────────────────────────────────────
 
-        int embeddingSize = 16;
-        int layerCount = 3; // just one transformer block for speed - try layerCount=2 to see improvement
-        int headCount = 4;
+        var embeddingSize = 64;
+        var layerCount = 4; // just one transformer block for speed - try layerCount=2 to see improvement
+        var headCount = 4;
         var learningRate = 0.001;
         var startTime = DateTime.UtcNow;
 
@@ -80,23 +80,23 @@ public static class TinyJarvisModelTrainer
             tokens.Add(tokenizer.EOS); // mark the end of the sequence
 
             // Any name longer than maxSequenceLength - 1 is silently truncated here.
-            int tokenCount = Math.Min(maxSequenceLength - 1, tokens.Count);
+            var maxInputPositions = maxSequenceLength - 1;   // reserve one slot for generation
+            var tokenCount = Math.Min(tokens.Count - 1, maxInputPositions);
 
-            List<List<Value>>[] keys = model.CreateKvCache();
-            List<List<Value>>[] values = model.CreateKvCache();
+            var keys = model.CreateKvCache();
+            var values = model.CreateKvCache();
 
             var loss = new Value(0);
 
             for (var posId = 0; posId < tokenCount; posId++)
             {
                 var token = tokens[posId];
+                var nextToken = tokens[posId + 1];
 
-                List<Value> logits = model.Forward(token, posId, keys, values);
-                List<Value> probabilities = Helpers.Softmax(logits);
+                var logits = model.Forward(token, posId, keys, values);
 
-                if (posId < 0) continue;
-
-                loss += Helpers.CrossEntropyLoss(logits, token);
+                // loss is now calculated by CrossEntropyLoss instead of manually calculating via Softmax
+                loss += Helpers.CrossEntropyLoss(logits, nextToken);
             }
 
             loss *= 1.0 / tokenCount;
@@ -112,15 +112,8 @@ public static class TinyJarvisModelTrainer
             visited.Clear();
             backwardStack.Clear();
 
-            loss.SetDefaultGrad(1.0);
+            loss.Modify((_, grad) => grad = grad == default ? 1.0 : grad);
             loss.Backward(topo, visited, backwardStack);
-
-            // Debug
-            //if (step == 0 || step == 100)
-            //{
-            //    var someParam = model.Parameters[0];
-            //    Console.WriteLine($"Step {step}, param Data: {someParam.Data:F6}, Grad: {someParam.Grad:F6}");
-            //}
 
             optimiser.Step(step);
             var percentage = (step + 1) * 100.0 / totalNumberOfSteps;

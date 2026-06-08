@@ -231,7 +231,7 @@ public class TinyJarvisModel
 
         // Reserve at least one slot for generation, but don't go over MaxSequenceLength
         var maxPromptTokens = MaxSequenceLength - 1; // leave room for at least one generated token
-        var tokenCount = Math.Min(maxPromptTokens, allTokens.Count);
+        int tokenCount = Math.Min(tokens.Count, maxPromptTokens);
 
         // If the prompt is too long, you might want to truncate from the front, but here we just take the first tokenCount tokens.
         if (tokenCount < allTokens.Count)

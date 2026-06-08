@@ -33,11 +33,9 @@ public class Value(double data, Value[]? inputs = null, double[]? localGrads = n
     // ReLU: passes positive values through unchanged, blocks negatives entirely.
     public Value Relu() => new(Math.Max(0, Data), [this], [Data > 0 ? 1.0 : 0.0]);
 
-    public void SetDefaultGrad(double defaultGrad)
-    {
-        if (Grad == 0)
-            Grad = defaultGrad;
-    }
+    public void Modify(Action<double, double, Value[]?, double[]?> action) => action.Invoke(Data, Grad, _inputs, LocalGrads);
+    public void Modify(Action<double, double> action) => action.Invoke(Data, Grad);
+
     /// <summary>
     /// Dot product of two lists of Values. The result is a single Value, and the local gradients are
     /// computed with respect to each input Value.
