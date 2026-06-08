@@ -2,9 +2,6 @@ using Tiny.Jarvis.Models;
 
 namespace Tiny.Jarvis.Optimization;
 
-// Encapsulates the Adam update from Chapter 7 (momentum, squared-gradient
-// average, bias correction) along with the linear learning-rate decay used
-// across the course. See Chapter 7 for the underlying maths.
 internal class AdamOptimiser
 {
     private const double MomentumSmoothing = 0.85;
@@ -38,6 +35,22 @@ internal class AdamOptimiser
     // Apply one Adam update to every parameter using its current Grad.
     public void Step(int step)
     {
+        // Compute the total L2 norm of all gradients
+        var gradNormSq = 0.0;
+        foreach (var param in _parameters)
+            gradNormSq += param.Grad * param.Grad;
+
+        var gradNorm = Math.Sqrt(gradNormSq);
+
+        // If norm exceeds threshold, scale all gradients
+        var maxNorm = 1.0;   // common value, can be tuned
+        if (gradNorm > maxNorm)
+        {
+            var scale = maxNorm / gradNorm;
+            foreach (var param in _parameters)
+                param.Grad *= scale;
+        }
+
         var currentLearningRate = _baseLearningRate * (1 - (double)step / _totalSteps);
         for (int i = 0; i < _parameters.Count; i++)
         {

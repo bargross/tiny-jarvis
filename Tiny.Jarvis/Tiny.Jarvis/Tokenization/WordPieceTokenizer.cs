@@ -5,66 +5,48 @@ namespace Tiny.Jarvis.Tokenization
     public class WordPieceTokenizer: ITokenizer
     {
         private readonly HashSet<string> _tokenVocabulary;
-        private readonly Dictionary<string, int> _tokenToIdentifier;
-        private readonly Dictionary<int, string> _identifierToToken;
+        private readonly Dictionary<int, string> _tokenToIdentifier;
+        private readonly Dictionary<string, int> _identifierToToken;
 
         private readonly int _unknownTokenIdentifier;
-        private const string UnknownToken = "[UNK]";
-        private const string SubwordPrefix = "##";
+        private const string _unknownToken = "[UNK]";
+        private const string _bosToken = "[BOS]";
+        private const string _endOfSequenceToken = "[EOS]";
+        private const string _subwordPrefix = "##";
         private readonly int _vocabularySize;
 
         public int VocabSize => _vocabularySize;
+        public int BOS { get; } // Beginning of Sequence token ID
+        public int EOS { get; } // End of Sequence token ID
 
-        public WordPieceTokenizer(List<string> docs, int unknownTokenIdentifier, int targetVocabularySize = 20)
+        public WordPieceTokenizer(IEnumerable<string> docs, int targetVocabularySize = 20)
         {
-            _vocabularySize = targetVocabularySize;
+            // Train WordPiece subword vocabulary (list of strings, no special tokens yet)
+            var trainedTokens = new WordPieceTrainer().Train(docs, targetVocabularySize);
 
-            var vocabulary = new WordPieceTrainer().Train(docs, targetVocabularySize);
+            // Prepare a set of all tokens (use a HashSet to avoid duplicates)
+            var allTokensSet = new HashSet<string> { _unknownToken, _bosToken, _endOfSequenceToken };
+            foreach (var token in trainedTokens)
+                allTokensSet.Add(token);   // duplicates (like "[UNK]") are ignored
 
-            // 2. Build token-to-ID map (simple assignment)
-            var tokenToIdWP = vocabulary
-                .OrderBy(t => t)
-                .Select((token, index) => new KeyValuePair<string, int>(token, index))
-                .ToDictionary();
+            // Convert to a sorted list for deterministic ordering
+            var allTokensList = allTokensSet.OrderBy(t => t).ToList();
 
-            // Add [UNK] token
-            const string unknown = "[UNK]";
-            tokenToIdWP[unknown] = 0;
-            vocabulary.Add(unknown);
+            // Build mapping: token string → integer ID
+            var tokenToId = new Dictionary<string, int>();
+            for (int i = 0; i < allTokensList.Count; i++)
+                tokenToId[allTokensList[i]] = i;
 
-            _tokenVocabulary = vocabulary;
-            _tokenToIdentifier = tokenToIdWP;
-            _unknownTokenIdentifier = unknownTokenIdentifier;
-            _identifierToToken = tokenToIdWP.ToDictionary(kvp => kvp.Value, kvp => kvp.Key);
+            // Assign your fields exactly as in your original code
+            _tokenVocabulary = allTokensSet;                                
+            _identifierToToken = tokenToId;                                 // string → int
+            _tokenToIdentifier = tokenToId.ToDictionary(kvp => kvp.Value, kvp => kvp.Key); // int → string
 
-            if (!_tokenVocabulary.Contains(UnknownToken))
-                _tokenVocabulary.Add(UnknownToken);
+            _unknownTokenIdentifier = _identifierToToken[_unknownToken];
+            BOS = _identifierToToken[_bosToken];
+            EOS = _identifierToToken[_endOfSequenceToken];
 
-            if (!_tokenToIdentifier.ContainsKey(UnknownToken))
-                _tokenToIdentifier[UnknownToken] = unknownTokenIdentifier;
-
-            if (!_identifierToToken.ContainsKey(unknownTokenIdentifier))
-                _identifierToToken[unknownTokenIdentifier] = UnknownToken;
-        }
-
-        public WordPieceTokenizer(
-            HashSet<string> tokenVocabulary,
-            Dictionary<string, int> tokenToIdentifier,
-            int unknownTokenIdentifier)
-        {
-            _tokenVocabulary = tokenVocabulary;
-            _tokenToIdentifier = tokenToIdentifier;
-            _unknownTokenIdentifier = unknownTokenIdentifier;
-            _identifierToToken = tokenToIdentifier.ToDictionary(kvp => kvp.Value, kvp => kvp.Key);
-
-            if (!_tokenVocabulary.Contains(UnknownToken))
-                _tokenVocabulary.Add(UnknownToken);
-
-            if (!_tokenToIdentifier.ContainsKey(UnknownToken))
-                _tokenToIdentifier[UnknownToken] = unknownTokenIdentifier;
-
-            if (!_identifierToToken.ContainsKey(unknownTokenIdentifier))
-                _identifierToToken[unknownTokenIdentifier] = UnknownToken;
+            _vocabularySize = _tokenToIdentifier.Count;
         }
 
         public IReadOnlyList<int> Encode(string text)
@@ -72,31 +54,28 @@ namespace Tiny.Jarvis.Tokenization
             return text
                 .Split(' ')
                 .SelectMany(word => SegmentWordByLongestMatch(word))
-                .Select(token => _tokenToIdentifier.GetValueOrDefault(token, _unknownTokenIdentifier))
+                .Select(token => _identifierToToken.GetValueOrDefault(token, _unknownTokenIdentifier))
                 .ToList();
         }
 
         public string Decode(IReadOnlyList<int> identifiers)
         {
             var tokens = identifiers
-                .Select(id => _identifierToToken.GetValueOrDefault(id, UnknownToken))
+                .Select(id => _tokenToIdentifier.GetValueOrDefault(id, _unknownToken))
                 .ToList();
 
             // WordPiece uses "##" to indicate that a token is attached to the previous one.
             var result = new List<string>();
             foreach (var token in tokens)
             {
-                if (token.StartsWith(SubwordPrefix))
+                if (token.StartsWith(_subwordPrefix))
                 {
                     if (result.Any())
-                        result[result.Count - 1] += token.Substring(SubwordPrefix.Length);
-                    else
-                        result.Add(token.Substring(SubwordPrefix.Length));
+                        result[result.Count - 1] += token.Substring(_subwordPrefix.Length);
+                    
+                    else result.Add(token.Substring(_subwordPrefix.Length));
                 }
-                else
-                {
-                    result.Add(token);
-                }
+                else result.Add(token);
             }
             return string.Join("", result);
         }
@@ -114,14 +93,17 @@ namespace Tiny.Jarvis.Tokenization
             if (bestToken != null)
             {
                 yield return bestToken;
-                string next = remainingText.Substring(bestToken.Length);
+
+                var next = remainingText.Substring(bestToken.Length);
+
                 foreach (var token in SegmentWordByLongestMatch(next))
                     yield return token;
             }
             else
             {
                 // No token matches – use unknown token and advance one character
-                yield return UnknownToken;
+                yield return _unknownToken;
+
                 foreach (var token in SegmentWordByLongestMatch(remainingText.Substring(1)))
                     yield return token;
             }

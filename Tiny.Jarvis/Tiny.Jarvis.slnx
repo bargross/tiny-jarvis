@@ -1,3 +1,13 @@
 <Solution>
-  <Project Path="Tiny.Jarvis/Tiny.Jarvis.csproj" />
+  <Folder Name="/Assets/">
+    <File Path="Assets/bitext-travel-llm-chatbot-training-dataset.csv" />
+    <File Path="Assets/bitext-travel-llm-chatbot-training-dataset.json" />
+    <File Path="Assets/input.txt" />
+    <File Path="Assets/passenger-register-titanic-dataset.csv" />
+    <File Path="Assets/passenger-register-titanic-dataset.json" />
+    <File Path="tiny-shakesphere.txt" />
+  </Folder>
+  <Project Path="Tiny.Jarvis.Main/Tiny.Jarvis.Main.csproj" Id="c4d79b83-c433-47de-b432-8e54964e6a0a" />
+  <Project Path="Tiny.Jarvis.Message/Tiny.Jarvis.Message.csproj" Id="dd4cbe3b-342a-4313-bc35-f645022c4144" />
+  <Project Path="Tiny.Jarvis/Tiny.Jarvis.Training.csproj" />
 </Solution>

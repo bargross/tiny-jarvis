@@ -2,7 +2,7 @@
 {
     internal class BytePairEncodingTrainer
     {
-        public (Dictionary<string, int> TokenToIdentifier, List<(string Left, string Right)> MergeRules) Train(
+        public (Dictionary<string, int> IdentifierToToken, List<(string Left, string Right)> MergeRules) Train(
             string trainingCorpus,
             int numberOfMerges)
         {

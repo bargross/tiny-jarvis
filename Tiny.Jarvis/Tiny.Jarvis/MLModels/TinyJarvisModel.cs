@@ -6,15 +6,14 @@ namespace Tiny.Jarvis.MLModels;
 
 public class TinyJarvisModel
 {
-    // The state dict keys follow PyTorch / GPT-2 convention (wte = weight token embedding,
-    // wpe = weight position embedding, etc.) so this code can map directly to PyTorch
-    // checkpoints if you ever want to load real GPT-2 weights. The aliased properties
-    // below give us readable C# names to use inside Forward without losing that bridge.
     private readonly Dictionary<string, Value[][]> _stateDict;
     private readonly int _embeddingSize;
     private readonly int _headCount;
     private readonly int _layerCount;
     private readonly int _headDimension;
+    private readonly int _vocabularySize;
+    private readonly int _bosToken;
+    private readonly int _endOfSequenceToken;
 
     private Value[][] TokenEmbeddings => _stateDict["wte"];
     private Value[][] PositionEmbeddings => _stateDict["wpe"];
@@ -22,6 +21,9 @@ public class TinyJarvisModel
 
     /// <summary>All trainable parameters, flattened into a single list for the optimiser.</summary>
     public List<Value> Parameters { get; }
+    public int MaxSequenceLength { get; }
+    public int TotalTokenEmbeddings { get; }
+    public int TotalPositionEmbeddings { get; }
 
     public TinyJarvisModel(
         int vocabSize,
@@ -29,6 +31,8 @@ public class TinyJarvisModel
         int headCount,
         int layerCount,
         int maxSequenceLength,
+        int bosToken,
+        int endOfSequenceToken,
         Random random
     )
     {
@@ -36,6 +40,9 @@ public class TinyJarvisModel
         _headCount = headCount;
         _layerCount = layerCount;
         _headDimension = embeddingSize / headCount;
+        _vocabularySize = vocabSize;
+        _bosToken = bosToken;
+        _endOfSequenceToken = endOfSequenceToken;
 
         _stateDict = new Dictionary<string, Value[][]>
         {
@@ -44,29 +51,31 @@ public class TinyJarvisModel
             ["lm_head"] = Helpers.CreateMatrix(random, vocabSize, embeddingSize),
         };
 
-        for (int i = 0; i < layerCount; i++)
+        for (int layerIndex = 0; layerIndex < layerCount; layerIndex++)
         {
-            _stateDict[$"layer{i}.attn_wq"] = Helpers.CreateMatrix(random, embeddingSize, embeddingSize);
-            _stateDict[$"layer{i}.attn_wk"] = Helpers.CreateMatrix(random, embeddingSize, embeddingSize);
-            _stateDict[$"layer{i}.attn_wv"] = Helpers.CreateMatrix(random, embeddingSize, embeddingSize);
-            _stateDict[$"layer{i}.attn_wo"] = Helpers.CreateMatrix(random, embeddingSize, embeddingSize);
-            _stateDict[$"layer{i}.mlp_fc1"] = Helpers.CreateMatrix(
-                random,
-                4 * embeddingSize,
-                embeddingSize
-            );  
-            _stateDict[$"layer{i}.mlp_fc2"] = Helpers.CreateMatrix(
-                random,
-                embeddingSize,
-                4 * embeddingSize
-            );
+            // Attention weight matrices (Query, Key, Value, Output)
+            _stateDict[$"layer{layerIndex}.attn_wq"] = Helpers.CreateMatrix(random, embeddingSize, embeddingSize);
+            _stateDict[$"layer{layerIndex}.attn_wk"] = Helpers.CreateMatrix(random, embeddingSize, embeddingSize);
+            _stateDict[$"layer{layerIndex}.attn_wv"] = Helpers.CreateMatrix(random, embeddingSize, embeddingSize);
+            _stateDict[$"layer{layerIndex}.attn_wo"] = Helpers.CreateMatrix(random, embeddingSize, embeddingSize);
+
+            // Feed‑forward network (first layer expands by factor 4, second contracts back)
+            int expandedSize = 4 * embeddingSize;
+
+            _stateDict[$"layer{layerIndex}.mlp_fc1"] = Helpers.CreateMatrix(random, expandedSize, embeddingSize);
+            _stateDict[$"layer{layerIndex}.mlp_fc2"] = Helpers.CreateMatrix(random, embeddingSize, expandedSize);
         }
+
+        MaxSequenceLength = maxSequenceLength;
 
         // Dictionary<TKey,TValue> enumeration order is not guaranteed by the spec.
         // In .NET Core+ it preserves insertion order in practice, so Adam's momentum[]/squaredGradAvg[]
         // line up across runs - but if that implementation detail ever changes, switch
         // to a List<KeyValuePair<string, ...>> to make the order explicit.
-        Parameters = [.. _stateDict.Values.SelectMany(mat => mat).SelectMany(row => row)];
+        Parameters = _stateDict.Values.SelectMany(mat => mat).SelectMany(row => row).ToList();
+
+        TotalPositionEmbeddings = PositionEmbeddings.Length;
+        TotalTokenEmbeddings = TokenEmbeddings.Length;
     }
 
     public List<Value> Forward(
@@ -76,118 +85,198 @@ public class TinyJarvisModel
         List<List<Value>>[] values
     )
     {
+        // validate ids
+        if (tokenId < 0 || tokenId >= TokenEmbeddings.Length)
+            throw new ArgumentOutOfRangeException(nameof(tokenId), $"tokenId {tokenId} is out of bounds for vocab size {TokenEmbeddings.Length}");
+
+        if (posId < 0 || posId >= PositionEmbeddings.Length)
+            throw new ArgumentOutOfRangeException(nameof(posId), $"posId {posId} is out of bounds for position embedding size {PositionEmbeddings.Length}");
+
+        // use ids directly (remove the -1 adjustment)
         var tokenEmbedding = TokenEmbeddings.GetRow(tokenId);
         var positionEmbedding = PositionEmbeddings.GetRow(posId);
 
-        var x = new List<Value>();
+        var probabilities = new List<Value>();
         for (int i = 0; i < _embeddingSize; i++)
         {
-            x.Add(tokenEmbedding[i] + positionEmbedding[i]);
+            probabilities.Add(tokenEmbedding[i] + positionEmbedding[i]);
         }
 
         // Initial RmsNorm: stabilises the embeddings before entering the first block.
         // This isn't standard in all transformer implementations, but gives the
         // residual stream a stable starting magnitude.
-        x = Helpers.RmsNorm(x);
+        probabilities = Helpers.RmsNorm(probabilities);
 
         for (int layerIndex = 0; layerIndex < _layerCount; layerIndex++)
         {
-            x = AttentionBlock(x, layerIndex, keys, values);
-            x = MlpBlock(x, layerIndex);
+            probabilities = AttentionBlock(probabilities, layerIndex, keys, values);
+            probabilities = MlpBlock(probabilities, layerIndex);
         }
 
         // Note: production transformers typically apply a final RmsNorm here
         // before the output projection. We omit it for simplicity.
-        return Helpers.Linear(x, OutputProjection);
+        return Helpers.Linear(probabilities, OutputProjection);
     }
 
     // Attention wrapped with pre-norm and a residual connection.
     // Mutates keys[layerIndex] and values[layerIndex] by appending the current position's K and V.
     private List<Value> AttentionBlock(
-        List<Value> x,
+        List<Value> hiddenState,
         int layerIndex,
-        List<List<Value>>[] keys,
-        List<List<Value>>[] values
-    )
+        List<List<Value>>[] keysCache,
+        List<List<Value>>[] valuesCache)
     {
-        var xResidual = new List<Value>(x);
-        x = Helpers.RmsNorm(x);
+        // Save input for residual connection later
+        var residualConnection = new List<Value>(hiddenState);
+        hiddenState = Helpers.RmsNorm(hiddenState);
 
-        List<Value> query = Helpers.Linear(x, _stateDict[$"layer{layerIndex}.attn_wq"]);
-        List<Value> key = Helpers.Linear(x, _stateDict[$"layer{layerIndex}.attn_wk"]);
-        List<Value> value = Helpers.Linear(x, _stateDict[$"layer{layerIndex}.attn_wv"]);
+        // Compute Query, Key, Value projections
+        var queryProjection = Helpers.Linear(hiddenState, _stateDict[$"layer{layerIndex}.attn_wq"]);
+        var keyProjection = Helpers.Linear(hiddenState, _stateDict[$"layer{layerIndex}.attn_wk"]);
+        var valueProjection = Helpers.Linear(hiddenState, _stateDict[$"layer{layerIndex}.attn_wv"]);
 
-        keys[layerIndex].Add(key);
-        values[layerIndex].Add(value);
+        // Store current Key and Value in caches (for autoregressive generation)
+        keysCache[layerIndex].Add(keyProjection);
+        valuesCache[layerIndex].Add(valueProjection);
 
-        var concatenatedHeads = new List<Value>();
-        for (int h = 0; h < _headCount; h++)
+        // Multi‑head attention: process each head independently
+        var concatenatedHeadOutputs = new List<Value>();
+        for (int headIndex = 0; headIndex < _headCount; headIndex++)
         {
-            int headStart = h * _headDimension;
-            List<Value> queryForHead = query.GetRange(headStart, _headDimension);
+            int headStartIndex = headIndex * _headDimension;
+            var queryForHead = queryProjection.GetRange(headStartIndex, _headDimension);
 
+            // Compute scaled dot‑product attention scores against all past keys
             var attentionLogits = new List<Value>();
-            int cachedCount = keys[layerIndex].Count;
-            for (int t = 0; t < cachedCount; t++)
+            int cachedPositionsCount = keysCache[layerIndex].Count;
+            for (int pastPosition = 0; pastPosition < cachedPositionsCount; pastPosition++)
             {
-                List<Value> keyForHead = keys[layerIndex][t].GetRange(headStart, _headDimension);
-                var dot = new Value(0);
-                for (int j = 0; j < _headDimension; j++)
-                {
-                    dot += queryForHead[j] * keyForHead[j];
-                }
-
-                attentionLogits.Add(dot / Math.Sqrt(_headDimension));
+                var keyForHead = keysCache[layerIndex][pastPosition].GetRange(headStartIndex, _headDimension);
+                var dotProduct = new Value(0);
+                for (int dimension = 0; dimension < _headDimension; dimension++)
+                    dotProduct += queryForHead[dimension] * keyForHead[dimension];
+                attentionLogits.Add(dotProduct / Math.Sqrt(_headDimension));
             }
 
-            List<Value> attentionWeights = Helpers.Softmax(attentionLogits);
+            // Convert logits to probabilities
+            var attentionWeights = Helpers.Softmax(attentionLogits);
 
-            var headOutput = new List<Value>();
-            for (int j = 0; j < _headDimension; j++)
+            // Weighted sum of values (this head's output)
+            var headOutputValues = new List<Value>();
+            for (int dimension = 0; dimension < _headDimension; dimension++)
+                headOutputValues.Add(new Value(0));
+
+            for (int pastPosition = 0; pastPosition < cachedPositionsCount; pastPosition++)
             {
-                headOutput.Add(new Value(0));
+                var valueForHead = valuesCache[layerIndex][pastPosition].GetRange(headStartIndex, _headDimension);
+                var weight = attentionWeights[pastPosition];
+                for (int dimension = 0; dimension < _headDimension; dimension++)
+                    headOutputValues[dimension] += weight * valueForHead[dimension];
             }
 
-            for (int t = 0; t < cachedCount; t++)
-            {
-                List<Value> valueForHead = values[layerIndex]
-                    [t]
-                    .GetRange(headStart, _headDimension);
-                Value w = attentionWeights[t];
-                for (int j = 0; j < _headDimension; j++)
-                {
-                    headOutput[j] += w * valueForHead[j];
-                }
-            }
-            concatenatedHeads.AddRange(headOutput);
+            concatenatedHeadOutputs.AddRange(headOutputValues);
         }
 
-        x = Helpers.Linear(concatenatedHeads, _stateDict[$"layer{layerIndex}.attn_wo"]);
-        for (int i = 0; i < _embeddingSize; i++)
-        {
-            x[i] += xResidual[i];
-        }
+        // Final linear projection and residual connection
+        var attentionOutput = Helpers.Linear(concatenatedHeadOutputs, _stateDict[$"layer{layerIndex}.attn_wo"]);
+        for (int dimensionIndex = 0; dimensionIndex < _embeddingSize; dimensionIndex++)
+            attentionOutput[dimensionIndex] += residualConnection[dimensionIndex];
 
-        return x;
+        return attentionOutput;
     }
 
     // Two-layer feed-forward with ReLU, wrapped with pre-norm and a residual connection.
-    private List<Value> MlpBlock(List<Value> x, int layerIndex)
+    private List<Value> MlpBlock(List<Value> probabilities, int layerIndex)
     {
-        var xResidual = new List<Value>(x);
+        var xResidual = new List<Value>(probabilities);
 
-        x = Helpers.RmsNorm(x);
-        x = Helpers.Linear(x, _stateDict[$"layer{layerIndex}.mlp_fc1"]);
+        probabilities = Helpers.RmsNorm(probabilities);
+        probabilities = Helpers.Linear(probabilities, _stateDict[$"layer{layerIndex}.mlp_fc1"]);
 
-        x = [.. x.Select(xi => xi.Relu())];
+        probabilities = probabilities.Select(xi => xi.Relu()).ToList();
 
-        x = Helpers.Linear(x, _stateDict[$"layer{layerIndex}.mlp_fc2"]);
-        for (int i = 0; i < _embeddingSize; i++)
+        probabilities = Helpers.Linear(probabilities, _stateDict[$"layer{layerIndex}.mlp_fc2"]);
+        
+        for (int embeddingIndex = 0; embeddingIndex < _embeddingSize; embeddingIndex++)
+            probabilities[embeddingIndex] += xResidual[embeddingIndex];
+        
+
+        return probabilities;
+    }
+
+    /// <summary>
+    /// Generates new token IDs autoregressively, given a starting prompt.
+    /// </summary>
+    /// <param name="inputIds">Token IDs of the prompt (from tokenizer.Encode).</param>
+    /// <param name="maxNewTokens">Maximum number of tokens to generate.</param>
+    /// <param name="temperature">>1 = more random, <1 = more deterministic.</param>
+    /// <param name="topK">If >0, only sample from the K most likely tokens.</param>
+    /// <param name="topP">Nucleus sampling: keep smallest set of tokens whose cumulative prob >= topP.</param>
+    /// <param name="endTokenId">If provided, stop generation when this token is produced.</param>
+    /// <returns>List of newly generated token IDs (excluding the original prompt).</returns>
+    public IReadOnlyList<int> Generate(
+    IReadOnlyList<int> tokens,
+    int maxNewTokens,
+    double temperature = 1.0,
+    int topK = 0,
+    double topP = 1.0,
+    bool prependBos = true)
+    {
+        // Copy the prompt to a mutable list and optionally prepend BOS
+        var allTokens = new List<int>(tokens);
+        if (prependBos && (allTokens.Count == 0 || allTokens[0] != _bosToken))
         {
-            x[i] += xResidual[i];
+            allTokens.Insert(0, _bosToken);
         }
 
-        return x;
+        // Reserve at least one slot for generation, but don't go over MaxSequenceLength
+        int maxPromptTokens = MaxSequenceLength - 1; // leave room for at least one generated token
+        int tokenCount = Math.Min(maxPromptTokens, allTokens.Count);
+
+        // If the prompt is too long, you might want to truncate from the front, but here we just take the first tokenCount tokens.
+        if (tokenCount < allTokens.Count)
+        {
+            // Optional: log a warning that prompt was truncated
+            allTokens = allTokens.Take(tokenCount).ToList();
+        }
+
+        var keys = CreateKvCache();
+        var values = CreateKvCache();
+        List<Value>? lastLogits = null;
+
+        // Feed prompt tokens
+        for (int pos = 0; pos < tokenCount; pos++)
+        {
+            lastLogits = Forward(allTokens[pos], pos, keys, values);
+        }
+
+        int currentPos = tokenCount;
+        var generated = new List<int>();
+
+        for (int step = 0; step < maxNewTokens; step++)
+        {
+            // Ensure we have logits (should never be null if tokenCount > 0)
+            if (lastLogits == null) break;
+
+            int nextToken = Helpers.SampleToken(lastLogits, temperature, topK, topP);
+
+            generated.Add(nextToken);
+            allTokens.Add(nextToken);
+
+            if (nextToken == _endOfSequenceToken)
+                break;
+
+            // -1 because we need to leave room? Actually we can use up to MaxSequenceLength-1 for feeding the token itself.
+            if (currentPos >= maxPromptTokens) 
+            {
+                break;
+            }
+
+            lastLogits = Forward(nextToken, currentPos, keys, values);
+            currentPos++;
+        }
+
+        return generated; // or return allTokens.Skip(originalPromptLength)
     }
 
     /// <summary>Creates a fresh KV cache for a new document/sample.</summary>

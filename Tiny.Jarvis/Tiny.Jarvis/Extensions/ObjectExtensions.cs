@@ -19,7 +19,7 @@
         public static List<TSource> GetRow<TSource>(this TSource[][] source, int row)
         {
             if (row < 0 || row >= source.Length)
-                throw new ArgumentOutOfRangeException(nameof(row), "Row index is out of range.");
+                return [];
 
             var result = new List<TSource>();
             for (int j = 0; j < source[row].Length; j++)

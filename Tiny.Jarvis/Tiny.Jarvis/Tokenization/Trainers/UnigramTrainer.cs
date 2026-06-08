@@ -2,7 +2,7 @@
 {
     internal class UnigramTrainer
     {
-        public Dictionary<string, double> Train(List<string> trainingCorpus, int targetVocabularySize)
+        public Dictionary<string, double> Train(IEnumerable<string> trainingCorpus, int targetVocabularySize)
         {
             // Step 1: Create seed vocabulary from all possible substrings (up to some length limit)
             var seedVocabulary = new HashSet<string>();
@@ -45,7 +45,7 @@
             return tokenProbabilities;
         }
 
-        private Dictionary<string, double> EstimateProbabilities(List<string> corpus, HashSet<string> vocabulary)
+        private Dictionary<string, double> EstimateProbabilities(IEnumerable<string> corpus, HashSet<string> vocabulary)
         {
             // Simplified: count token occurrences using best segmentation (Viterbi)
             var tokenCounts = new Dictionary<string, int>();
@@ -71,7 +71,7 @@
         }
 
         private double ComputeLossIncrease(
-            List<string> corpus,
+            IEnumerable<string> corpus,
             HashSet<string> vocabulary,
             string candidateToRemove,
             Dictionary<string, double> currentProbabilities)
@@ -86,7 +86,7 @@
         }
 
         private double ComputeTotalLoss(
-            List<string> corpus,
+            IEnumerable<string> corpus,
             HashSet<string> vocabulary,
             Dictionary<string, double> probabilities)
         {

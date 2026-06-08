@@ -3,7 +3,7 @@ namespace Tiny.Jarvis.Models;
 public class Value(double data, Value[]? inputs = null, double[]? localGrads = null)
 {
     public double Data = data;
-    public double Grad; // filled in during the backward pass (Chapter 2)
+    public double Grad; // filled in during the backward pass
 
     private readonly Value[]? _inputs = inputs;
     private readonly double[]? _localGrads = localGrads;
@@ -25,13 +25,19 @@ public class Value(double data, Value[]? inputs = null, double[]? localGrads = n
 
     // -Infinity if Data == 0, NaN if Data < 0. If you see NaN propagating through
     // training, a softmax probability collapsed to 0 and this is usually the entry point.
-    public Value Log() => new(Math.Log(Data), [this], [1.0 / Data]);
+    // 1e-8 adds safety to the 
+    public Value Log() => new(Math.Log(Data), [this], [1.0 / (Data <= 0 ? 1e-8 : Data)]);
 
     public Value Exp() => new(Math.Exp(Data), [this], [Math.Exp(Data)]);
 
     // ReLU: passes positive values through unchanged, blocks negatives entirely.
     public Value Relu() => new(Math.Max(0, Data), [this], [Data > 0 ? 1.0 : 0.0]);
 
+    public void SetDefaultGrad(double defaultGrad)
+    {
+        if (Grad == 0)
+            Grad = defaultGrad;
+    }
     /// <summary>
     /// Dot product of two lists of Values. The result is a single Value, and the local gradients are
     /// computed with respect to each input Value.
@@ -63,5 +69,13 @@ public class Value(double data, Value[]? inputs = null, double[]? localGrads = n
 
     public static Value operator /(Value a, double b) => a * Math.Pow(b, -1);
 
-    public override string ToString() => $"Value(data={Data})";
+    public static implicit operator Value(double d) => new(d, [], []);
+
+    public override string ToString()
+    {
+        var localGradsAsStrings = _localGrads is null ? "" : string.Join(",", _localGrads.Select(x => x.ToString()));
+
+        return $"Value(data={Data}, inputsLength={Inputs.Length}, Grad={Grad}, localGrads={localGradsAsStrings})";
+    }
+
 }
