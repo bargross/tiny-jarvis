@@ -12,7 +12,10 @@ namespace Tiny.Jarvis.Training.Trainers;
 public static class TinyJarvisModelTrainer
 {
     public static (TinyJarvisModel, ITokenizer) Train(IEnumerable<string> docs, TokenizerStrategy strategy, int maxSequenceLength = 32, int totalNumberOfSteps = 10000, int vocabularySize = 50)
-    {        
+    {
+        // metrics
+        var watch = System.Diagnostics.Stopwatch.StartNew();
+
         // ── Hyperparameters ──────────────────────────────────────
 
         var embeddingSize = 64;
@@ -22,7 +25,6 @@ public static class TinyJarvisModelTrainer
         var startTime = DateTime.UtcNow;
 
         // ── Dataset and Tokenizer ────────────────────────────────
-
         var tokenizer = null as ITokenizer;
         switch (strategy)
         {
@@ -126,7 +128,10 @@ public static class TinyJarvisModelTrainer
                 );
             }
 
-            // Every 1000 steps, print a milestone showing overall progress.
+            if (step % 10 == 0)
+                Console.WriteLine($"Training Current Step: {step} / {totalNumberOfSteps}");
+
+                // Every 1000 steps, print a milestone showing overall progress.
             if ((step + 1) % 1000 == 0)
             {
                 Console.WriteLine($"[milestone], avg. loss: {avgLoss:F4} (was {lastMilestoneLoss:F4})");
@@ -139,13 +144,14 @@ public static class TinyJarvisModelTrainer
 
         }
 
-        var endTime = DateTime.UtcNow;
-        var hoursDiff = endTime.Hour - startTime.Hour;
-        var minutesDiff = endTime.Minute - startTime.Minute;
-        var secondsDiff = endTime.Second - startTime.Second;
+        watch.Stop();
+
+        var secondsDiff = watch.ElapsedMilliseconds / 1000;
+        var minutesDiff = secondsDiff / 60;
+        var hoursDiff = minutesDiff / 60;
 
         Console.WriteLine($"Start time: {startTime}");
-        Console.WriteLine($"End of training at: {endTime}");
+        Console.WriteLine($"End time: {DateTime.UtcNow}");
         Console.WriteLine($"Training was completed in: {hoursDiff}H {minutesDiff}m {secondsDiff}s");
 
         return (model, tokenizer);
