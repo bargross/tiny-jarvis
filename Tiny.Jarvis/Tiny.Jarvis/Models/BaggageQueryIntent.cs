@@ -1,6 +1,6 @@
 ﻿using System.Text.Json.Serialization;
 
-namespace Tiny.Jarvis.Training.Models.Training
+namespace Tiny.Jarvis.Training.Models
 {
     public class BaggageQueryIntent
     {

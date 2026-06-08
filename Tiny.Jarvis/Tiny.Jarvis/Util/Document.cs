@@ -59,7 +59,7 @@ namespace Tiny.Jarvis.Util
             return pathParts.Last();
         }
 
-        private static bool IsValidFormat(string format) =>  format == "csv" || format == "txt" || format == "json";
+        private static bool IsValidFormat(string format) =>  format == "csv" || format == "txt" || (format == "json" || format == "jsonl");
 
         private static string GetFileName(string path) => path.Split("\\").Last();
     }

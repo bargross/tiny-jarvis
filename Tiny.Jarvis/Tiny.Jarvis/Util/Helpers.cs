@@ -16,18 +16,19 @@ public static class Helpers
     /// </summary>
     public static List<Value> Softmax(List<Value> logits)
     {
+        if (logits == null || logits.Count == 0)
+            return new List<Value>();
+
         var maxLogit = logits.Max(value => value.Data);
-
-        // Clamp logits to avoid log(0) later (original code sets logits[i] to a double – keep as is)
-        for (var index = 0; index < logits.Count; index++)
-            logits[index] = Math.Max(logits[index].Data, 1e-8);   // Note: overwrites Value with double
-
         var exponentials = logits.Select(value => (value - maxLogit).Exp()).ToList();
         var sumOfExponentials = new Value(0);
+
         foreach (Value exponential in exponentials)
             sumOfExponentials += exponential;
 
-        return [.. exponentials.Select(exponential => exponential / sumOfExponentials)];
+        return exponentials
+            .Select(exponential => exponential / sumOfExponentials)
+            .ToList();
     }
 
     /// <summary>
@@ -108,7 +109,7 @@ public static class Helpers
                 if (!topKIndices.Contains(index))
                     probabilities[index] = 0.0;   // Set to double (converted to Value implicitly)
 
-            double sumOfProbs = probabilities.Sum(prob => prob.Data);
+            var sumOfProbs = probabilities.Sum(prob => prob.Data);
             for (int index = 0; index < probabilities.Count; index++)
                 probabilities[index] /= sumOfProbs;
         }
@@ -183,12 +184,11 @@ public static class Helpers
 
         // Prepare for backpropagation: local gradient of loss w.r.t each logit
         //    d(loss)/d(logit_i) = softmaxProbability_i - (1 if i == target else 0)
-        Value[] inputLogitsArray = logits.ToArray();
         var localGradients = new double[logits.Count];
         for (int i = 0; i < logits.Count; i++)
             localGradients[i] = softmaxProbabilities[i] - (i == targetTokenId ? 1.0 : 0.0);
 
         // Return a single Value node that encapsulates the loss and its local gradients
-        return new Value(lossValue, inputLogitsArray, localGradients);
+        return new Value(lossValue, logits.ToArray(), localGradients);
     }
 }

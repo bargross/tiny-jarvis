@@ -9,7 +9,7 @@ internal class BigramModel
     private readonly double[,] _nextTokenProbs;
     private ITokenizer Tokenizer;
 
-    public BigramModel(List<string> docs, SimpleTokenizer tokenizer)
+    public BigramModel(List<string> docs, CharacterTokenizer tokenizer)
     {
         int vocabSize = tokenizer.VocabSize;
 
@@ -22,7 +22,7 @@ internal class BigramModel
 
     internal int[,] CountTransitions(List<string> docs)
     {
-        Tokenizer = TokenizerGenerator.GetTokenizer(Enums.TokenizerStrategy.Simple, docs);
+        Tokenizer = TokenizerGenerator.GetTokenizer(Enums.TokenizerStrategy.Chars, docs);
         int vocabSize = Tokenizer.VocabSize;
         int[,] counts = new int[vocabSize, vocabSize];
 

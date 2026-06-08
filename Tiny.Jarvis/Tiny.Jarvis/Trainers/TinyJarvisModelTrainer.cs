@@ -11,21 +11,29 @@ namespace Tiny.Jarvis.Training.Trainers;
 
 public static class TinyJarvisModelTrainer
 {
-    public static (TinyJarvisModel, ITokenizer) Train(IEnumerable<string> docs, TokenizerStrategy strategy, int maxSequenceLength = 8, int totalNumberOfSteps = 10000)
+    public static (TinyJarvisModel, ITokenizer) Train(IEnumerable<string> docs, TokenizerStrategy strategy, int maxSequenceLength = 32, int totalNumberOfSteps = 10000, int vocabularySize = 50)
     {        
         // ── Hyperparameters ──────────────────────────────────────
 
         int embeddingSize = 16;
-        int layerCount = 4; // just one transformer block for speed - try layerCount=2 to see improvement
+        int layerCount = 2; // just one transformer block for speed - try layerCount=2 to see improvement
         int headCount = 4;
-        var learningRate = 1e-2;
-        var vocabularySize = 1024;
-        var random = new Random(42);
+        var learningRate = 0.01;
         var startTime = DateTime.UtcNow;
 
         // ── Dataset and Tokenizer ────────────────────────────────
 
-        var tokenizer = TokenizerGenerator.GetTokenizer(strategy, docs, vocabularySize);
+        var tokenizer = null as ITokenizer;
+        switch (strategy)
+        {
+            case TokenizerStrategy.Chars:
+                tokenizer = TokenizerGenerator.GetTokenizer(strategy, ["abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 .,!?-'\""], vocabularySize);
+                break;
+
+            default:
+                tokenizer = TokenizerGenerator.GetTokenizer(strategy, docs, vocabularySize);
+                break;
+        }
 
         Console.WriteLine($"num docs: {docs.Count()}");
         Console.WriteLine($"vocab size: {tokenizer.VocabSize}");
@@ -40,7 +48,7 @@ public static class TinyJarvisModelTrainer
             maxSequenceLength,
             tokenizer.BOS, // give it the bos token to use later when using Generate
             tokenizer.EOS, // eos tokent o signal end of function
-            random
+            new Random(42)
         );
 
         Console.WriteLine($"num params: {model.Parameters.Count}");
@@ -78,6 +86,7 @@ public static class TinyJarvisModelTrainer
             List<List<Value>>[] values = model.CreateKvCache();
 
             var loss = new Value(0);
+
             for (int posId = 0; posId < tokenCount; posId++)
             {
                 var token = tokens[posId];
@@ -85,10 +94,9 @@ public static class TinyJarvisModelTrainer
                 List<Value> logits = model.Forward(token, posId, keys, values);
                 List<Value> probabilities = Helpers.Softmax(logits);
 
-                var index = posId + 1;
-                if (index < 0) continue;
+                if (posId < 0) continue;
 
-                loss += Helpers.CrossEntropyLoss(logits, tokens[index]);
+                loss += Helpers.CrossEntropyLoss(logits, token);
             }
 
             loss *= 1.0 / tokenCount;
@@ -104,10 +112,18 @@ public static class TinyJarvisModelTrainer
             visited.Clear();
             backwardStack.Clear();
 
+            loss.SetDefaultGrad(1.0);
             loss.Backward(topo, visited, backwardStack);
 
+            // Debug
+            //if (step == 0 || step == 100)
+            //{
+            //    var someParam = model.Parameters[0];
+            //    Console.WriteLine($"Step {step}, param Data: {someParam.Data:F6}, Grad: {someParam.Grad:F6}");
+            //}
+
             optimiser.Step(step);
-            double percentage = (step + 1) * 100.0 / totalNumberOfSteps;
+            var percentage = (step + 1) * 100.0 / totalNumberOfSteps;
 
             if (step == 0 || (step + 1) % 100 == 0)
             {
@@ -120,9 +136,7 @@ public static class TinyJarvisModelTrainer
             // Every 1000 steps, print a milestone showing overall progress.
             if ((step + 1) % 1000 == 0)
             {
-                Console.WriteLine(
-                    $"[milestone], avg. loss: {avgLoss:F4} (was {lastMilestoneLoss:F4})"
-                );
+                Console.WriteLine($"[milestone], avg. loss: {avgLoss:F4} (was {lastMilestoneLoss:F4})");
                 Console.WriteLine(Environment.NewLine);
 
                 lastMilestoneLoss = avgLoss;
@@ -131,9 +145,9 @@ public static class TinyJarvisModelTrainer
         }
 
         var endTime = DateTime.UtcNow;
-        var hoursDiff = startTime.Hour - endTime.Hour;
-        var minutesDiff = startTime.Minute - endTime.Minute;
-        var secondsDiff = startTime.Second - endTime.Second;
+        var hoursDiff = endTime.Hour - startTime.Hour;
+        var minutesDiff = endTime.Minute - startTime.Minute;
+        var secondsDiff = endTime.Second - startTime.Second;
 
         Console.WriteLine($"Start time: {startTime}");
         Console.WriteLine($"End of training at: {endTime}");

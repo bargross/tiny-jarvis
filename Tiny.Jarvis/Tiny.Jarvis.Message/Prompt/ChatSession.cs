@@ -36,6 +36,10 @@ namespace Tiny.Jarvis.Message.Prompt
 
                 _history.Add(inputMessage);
 
+                Console.WriteLine($"User Requests: {inputMessage.Content}");
+                Console.WriteLine($"Prompt: {inputMessage.ToString()}");
+                Console.WriteLine(Environment.NewLine);
+
                 // Build prompt with history
                 var prompt = string.Join("\n", _history.Select(x => x.ToString())) + "\nassistant: ";
 

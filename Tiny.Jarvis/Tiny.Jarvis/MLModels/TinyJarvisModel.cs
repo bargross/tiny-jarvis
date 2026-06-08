@@ -22,6 +22,8 @@ public class TinyJarvisModel
     /// <summary>All trainable parameters, flattened into a single list for the optimiser.</summary>
     public List<Value> Parameters { get; }
     public int MaxSequenceLength { get; }
+    public int TotalTokenEmbeddings { get; }
+    public int TotalPositionEmbeddings { get; }
 
     public TinyJarvisModel(
         int vocabSize,
@@ -71,6 +73,9 @@ public class TinyJarvisModel
         // line up across runs - but if that implementation detail ever changes, switch
         // to a List<KeyValuePair<string, ...>> to make the order explicit.
         Parameters = _stateDict.Values.SelectMany(mat => mat).SelectMany(row => row).ToList();
+
+        TotalPositionEmbeddings = PositionEmbeddings.Length;
+        TotalTokenEmbeddings = TokenEmbeddings.Length;
     }
 
     public List<Value> Forward(

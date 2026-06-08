@@ -3,7 +3,7 @@ namespace Tiny.Jarvis.Models;
 public class Value(double data, Value[]? inputs = null, double[]? localGrads = null)
 {
     public double Data = data;
-    public double Grad; // filled in during the backward pass (Chapter 2)
+    public double Grad; // filled in during the backward pass
 
     private readonly Value[]? _inputs = inputs;
     private readonly double[]? _localGrads = localGrads;
@@ -33,6 +33,11 @@ public class Value(double data, Value[]? inputs = null, double[]? localGrads = n
     // ReLU: passes positive values through unchanged, blocks negatives entirely.
     public Value Relu() => new(Math.Max(0, Data), [this], [Data > 0 ? 1.0 : 0.0]);
 
+    public void SetDefaultGrad(double defaultGrad)
+    {
+        if (Grad == 0)
+            Grad = defaultGrad;
+    }
     /// <summary>
     /// Dot product of two lists of Values. The result is a single Value, and the local gradients are
     /// computed with respect to each input Value.
@@ -66,5 +71,11 @@ public class Value(double data, Value[]? inputs = null, double[]? localGrads = n
 
     public static implicit operator Value(double d) => new(d, [], []);
 
-    public override string ToString() => $"Value(data={Data})";
+    public override string ToString()
+    {
+        var localGradsAsStrings = _localGrads is null ? "" : string.Join(",", _localGrads.Select(x => x.ToString()));
+
+        return $"Value(data={Data}, inputsLength={Inputs.Length}, Grad={Grad}, localGrads={localGradsAsStrings})";
+    }
+
 }

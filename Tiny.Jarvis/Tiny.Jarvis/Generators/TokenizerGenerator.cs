@@ -17,7 +17,7 @@ namespace Tiny.Jarvis.Training.Orchestrators
                 TokenizerStrategy.BytePair => new BytePairEncodingTokenizer(docs, vocabularySize, numOfMerges),
                 TokenizerStrategy.WordPiece => new WordPieceTokenizer(docs, vocabularySize),
                 TokenizerStrategy.Unigram => new UnigramTokenizer(docs, vocabularySize),
-                TokenizerStrategy.Simple => new SimpleTokenizer(docs),
+                TokenizerStrategy.Chars => new CharacterTokenizer(docs.First()),
                 _ => throw new ArgumentOutOfRangeException(nameof(strategy), strategy, null)
             };
         }
