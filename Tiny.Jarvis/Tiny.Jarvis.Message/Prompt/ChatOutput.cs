@@ -7,11 +7,11 @@ namespace Tiny.Jarvis.Message.Prompt
     {
         private static int _outputDelay = 250;
 
-        public static void Reply(string response, List<ChatMessage> history)
+        public static void Reply(string response, List<ChatMessage> history, string? promptName = null)
         {
             var message = new ChatMessage
             {
-                Role = Role.Assistant.ToString(),
+                From = promptName ?? "assistant",
                 Content = response,
                 CreatedAt = DateTime.UtcNow
             };
@@ -20,7 +20,7 @@ namespace Tiny.Jarvis.Message.Prompt
 
             var responseParts = response.Split(' ');
 
-            Console.Write($"{message.Role}: ");
+            Console.Write($"{message.From}: ");
             foreach (var responsePart in responseParts)
             {
                 Console.Write($" {responsePart}");
@@ -33,11 +33,11 @@ namespace Tiny.Jarvis.Message.Prompt
             //Console.WriteLine(message.ToString());
         }
 
-        public static bool ShouldEnd(List<ChatMessage> history)
+        public static bool ShouldEnd(List<ChatMessage> history, string? userPromptName = null)
         {
             var endMessage = new ChatMessage
             {
-                Role = Role.Assistant.ToString(),
+                From = userPromptName ?? "user",
                 Content = "End chant? (y/n)",
                 CreatedAt = DateTime.UtcNow
             };

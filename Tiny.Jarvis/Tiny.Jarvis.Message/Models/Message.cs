@@ -2,10 +2,10 @@
 {
     public class Message
     {
-        public string Role { get; set; }
+        public string From { get; set; }
         public string Content { get; set; }
         public DateTime CreatedAt { get; set; }
 
-        public override string ToString() => $"{Role}: {Content}";
+        public override string ToString() => $"{From}: {Content}";
     }
 }

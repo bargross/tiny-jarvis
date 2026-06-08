@@ -50,11 +50,11 @@ public static class Helpers
     public static Value[][] CreateMatrix(Random randomGenerator, int rowCount, int columnCount, double standardDeviation = 0.08)
     {
         var matrix = new Value[rowCount][];
-        for (int rowIndex = 0; rowIndex < rowCount; rowIndex++)
+        for (var rowIndex = 0; rowIndex < rowCount; rowIndex++)
         {
             matrix[rowIndex] = new Value[columnCount];
 
-            for (int columnIndex = 0; columnIndex < columnCount; columnIndex++)
+            for (var columnIndex = 0; columnIndex < columnCount; columnIndex++)
                 matrix[rowIndex][columnIndex] = new Value(RandomBellCurve(randomGenerator, 0, standardDeviation));
         }
 
@@ -82,7 +82,7 @@ public static class Helpers
     public static void ApplyTemperature(List<Value> logits, double temperature)
     {
         if (Math.Abs(temperature - 1.0) > 1e-8) 
-            for (int index = 0; index < logits.Count; index++)
+            for (var index = 0; index < logits.Count; index++)
                 logits[index] /= temperature;   // Divides Value by double – works if operator/ is defined
     }
 
@@ -105,12 +105,12 @@ public static class Helpers
                 .Select(pair => pair.index)
                 .ToHashSet();
 
-            for (int index = 0; index < probabilities.Count; index++)
+            for (var index = 0; index < probabilities.Count; index++)
                 if (!topKIndices.Contains(index))
                     probabilities[index] = 0.0;   // Set to double (converted to Value implicitly)
 
             var sumOfProbs = probabilities.Sum(prob => prob.Data);
-            for (int index = 0; index < probabilities.Count; index++)
+            for (var index = 0; index < probabilities.Count; index++)
                 probabilities[index] /= sumOfProbs;
         }
 
@@ -133,12 +133,12 @@ public static class Helpers
                     break;
             }
 
-            for (int index = 0; index < probabilities.Count; index++)
+            for (var index = 0; index < probabilities.Count; index++)
                 if (!indicesToKeep.Contains(index))
                     probabilities[index] = 0.0;
 
             var totalKeptProbability = probabilities.Sum(prob => prob.Data);
-            for (int index = 0; index < probabilities.Count; index++)
+            for (var index = 0; index < probabilities.Count; index++)
                 probabilities[index] /= totalKeptProbability;
         }
 
@@ -147,7 +147,7 @@ public static class Helpers
         var randomValue = random.NextDouble();
         var accumulatedProbability = 0.0;
 
-        for (int tokenId = 0; tokenId < probabilities.Count; tokenId++)
+        for (var tokenId = 0; tokenId < probabilities.Count; tokenId++)
         {
             accumulatedProbability += probabilities[tokenId].Data;
 
@@ -166,7 +166,7 @@ public static class Helpers
         // Compute exponentiated logits (shifted by maxLogit) and their sum
         var exponentiatedLogits = new double[logits.Count];
         var sumOfExponentiatedLogits = 0.0;
-        for (int i = 0; i < logits.Count; i++)
+        for (var i = 0; i < logits.Count; i++)
         {
             exponentiatedLogits[i] = Math.Exp(logits[i].Data - maxLogit);
             sumOfExponentiatedLogits += exponentiatedLogits[i];
@@ -174,7 +174,7 @@ public static class Helpers
 
         // Compute softmax probabilities
         var softmaxProbabilities = new double[logits.Count];
-        for (int i = 0; i < logits.Count; i++)
+        for (var i = 0; i < logits.Count; i++)
             softmaxProbabilities[i] = exponentiatedLogits[i] / sumOfExponentiatedLogits;
 
         // Extract the probability of the target token and compute negative log loss
@@ -185,7 +185,7 @@ public static class Helpers
         // Prepare for backpropagation: local gradient of loss w.r.t each logit
         //    d(loss)/d(logit_i) = softmaxProbability_i - (1 if i == target else 0)
         var localGradients = new double[logits.Count];
-        for (int i = 0; i < logits.Count; i++)
+        for (var i = 0; i < logits.Count; i++)
             localGradients[i] = softmaxProbabilities[i] - (i == targetTokenId ? 1.0 : 0.0);
 
         // Return a single Value node that encapsulates the loss and its local gradients

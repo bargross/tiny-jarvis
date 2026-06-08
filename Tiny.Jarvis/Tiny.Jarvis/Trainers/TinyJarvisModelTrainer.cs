@@ -16,9 +16,9 @@ public static class TinyJarvisModelTrainer
         // ── Hyperparameters ──────────────────────────────────────
 
         int embeddingSize = 16;
-        int layerCount = 2; // just one transformer block for speed - try layerCount=2 to see improvement
+        int layerCount = 3; // just one transformer block for speed - try layerCount=2 to see improvement
         int headCount = 4;
-        var learningRate = 0.01;
+        var learningRate = 0.001;
         var startTime = DateTime.UtcNow;
 
         // ── Dataset and Tokenizer ────────────────────────────────
@@ -70,7 +70,7 @@ public static class TinyJarvisModelTrainer
         var visited = new HashSet<Value>();
         var backwardStack = new Stack<(Value, int)>();
 
-        for (int step = 0; step < totalNumberOfSteps; step++)
+        for (var step = 0; step < totalNumberOfSteps; step++)
         {
             var doc = docs.ElementAt(step % docs.Count());
             var tokens = new List<int> { tokenizer.BOS };
@@ -87,7 +87,7 @@ public static class TinyJarvisModelTrainer
 
             var loss = new Value(0);
 
-            for (int posId = 0; posId < tokenCount; posId++)
+            for (var posId = 0; posId < tokenCount; posId++)
             {
                 var token = tokens[posId];
 
@@ -141,6 +141,8 @@ public static class TinyJarvisModelTrainer
 
                 lastMilestoneLoss = avgLoss;
             }
+
+            if (avgLoss < 1e-5) break;
 
         }
 

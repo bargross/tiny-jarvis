@@ -33,7 +33,9 @@ void BeginChat()
         Console.WriteLine(filePath);
 
     Console.WriteLine(Environment.NewLine);
-    var docs = GetDocs(filePaths, random);
+    var docsAndPromptNames = GetDocs(filePaths, random);
+    var docs = docsAndPromptNames.Item1;
+    var promptNames = docsAndPromptNames.Item2;
 
     // Train (or load) the model
     var (_model, _tokenizer) = TinyJarvisModelTrainer.Train(docs, tokenizerStrategy, maxSequenceLength, maxNumberOfSteps);
@@ -41,33 +43,49 @@ void BeginChat()
     // Now use the same model for chat
     Console.WriteLine("Training complete. Starting chat...");
     Console.WriteLine(Environment.NewLine);
-    var chat = new ChatSession(_model, _tokenizer);
+    var chat = new ChatSession(_model, _tokenizer, promptNames);
 
     chat.Run();
 }
 
-List<string> GetDocs(List<string> filePaths, Random random)
+(List<string>, (string promptName, string responsePromptName)?) GetDocs(List<string> filePaths, Random random)
 {
     var filePathToFormat = filePaths.ToDictionary(path => path, path => Document.GetFormat(path));
     var docs = new List<string>();
+    string[] acceptableJsonFormats = ["json", "jsonl"];
+    (string, string)? container = null;
 
     foreach (var kvp in filePathToFormat)
-        if (kvp.Value == "json")
-            switch(kvp.Key)
+        if (acceptableJsonFormats.Contains(kvp.Value)) {
+            
+            if (kvp.Key.Contains("passenger-register-titanic-dataset"))
+                docs.AddRange(Document.LoadFromJson<TitanicPassengerData>(kvp.Key, random).Select(x => x.ToString()));
+
+            if (kvp.Key.Contains("bitext-travel-llm-chatbot-training-dataset.jsonl")) 
             {
-                case "passenger-register-titanic-dataset":
-                    docs.AddRange(Document.LoadFromJson<TitanicPassenger>(kvp.Key, random).Select(x => x.ToString()));
-                    break;
-                case "bitext-travel-llm-chatbot-training-dataset":
-                    docs.AddRange(Document.LoadFromJson<BaggageQueryIntent>(kvp.Key, random).Select(x => x.ToString()));
-                    break;
-                case "pickle-dataset-all-training":
-                    docs.AddRange(Document.LoadFromJson<PickleDocument>(kvp.Key, random).SelectMany(doc => doc.Sentences).SelectMany(x => x));
-                    break;
+                var documents = Document.LoadFromJson<BaggageQueryIntentData>(kvp.Key, random);
+                container = documents.First().GetPromptNames;
+
+                docs.AddRange(documents.Select(x => x.ToString()));
             }
+
+            if (kvp.Key.Contains("pickle-dataset-all-training"))
+                docs.AddRange(Document.LoadFromJson<PickleDocument>(kvp.Key, random).SelectMany(doc => doc.Sentences).SelectMany(x => x));
+
+            if (kvp.Key.Contains("helpsteer-training"))
+            {
+                var documents = Document.LoadFromJson<PromptResponseData>(kvp.Key, random);
+                container = documents.First().GetPromptNames;
+
+                docs.AddRange(documents.Select(doc => doc.ToString()));
+            }
+
+            if (kvp.Key.Contains("puffin-gpt-conversation-training"))
+                docs.AddRange(Document.LoadFromJson<GPTConversationData>(kvp.Key, random).Select(doc => doc.ToString()));
+        }
         else docs.AddRange(Document.LoadFromFile(kvp.Key, random));
 
-    return docs;
+    return (docs, container);
 }
 
 /// <summary>

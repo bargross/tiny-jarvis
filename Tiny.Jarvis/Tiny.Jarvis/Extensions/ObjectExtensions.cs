@@ -8,7 +8,7 @@
                 throw new ArgumentException("Source array is empty.", nameof(source));
 
             var result = new List<TResult>();
-            for (int i = 0; i < source.Length; i++)
+            for (var i = 0; i < source.Length; i++)
             {
                 result.Add(selector(source[i]));
             }
@@ -22,7 +22,7 @@
                 return [];
 
             var result = new List<TSource>();
-            for (int j = 0; j < source[row].Length; j++)
+            for (var j = 0; j < source[row].Length; j++)
                 result.Add(source[row][j]);
 
             return result;

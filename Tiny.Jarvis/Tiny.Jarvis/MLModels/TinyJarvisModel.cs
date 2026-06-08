@@ -51,7 +51,7 @@ public class TinyJarvisModel
             ["lm_head"] = Helpers.CreateMatrix(random, vocabSize, embeddingSize),
         };
 
-        for (int layerIndex = 0; layerIndex < layerCount; layerIndex++)
+        for (var layerIndex = 0; layerIndex < layerCount; layerIndex++)
         {
             // Attention weight matrices (Query, Key, Value, Output)
             _stateDict[$"layer{layerIndex}.attn_wq"] = Helpers.CreateMatrix(random, embeddingSize, embeddingSize);
@@ -97,7 +97,7 @@ public class TinyJarvisModel
         var positionEmbedding = PositionEmbeddings.GetRow(posId);
 
         var probabilities = new List<Value>();
-        for (int i = 0; i < _embeddingSize; i++)
+        for (var i = 0; i < _embeddingSize; i++)
         {
             probabilities.Add(tokenEmbedding[i] + positionEmbedding[i]);
         }
@@ -107,7 +107,7 @@ public class TinyJarvisModel
         // residual stream a stable starting magnitude.
         probabilities = Helpers.RmsNorm(probabilities);
 
-        for (int layerIndex = 0; layerIndex < _layerCount; layerIndex++)
+        for (var layerIndex = 0; layerIndex < _layerCount; layerIndex++)
         {
             probabilities = AttentionBlock(probabilities, layerIndex, keys, values);
             probabilities = MlpBlock(probabilities, layerIndex);
@@ -141,7 +141,7 @@ public class TinyJarvisModel
 
         // Multi‑head attention: process each head independently
         var concatenatedHeadOutputs = new List<Value>();
-        for (int headIndex = 0; headIndex < _headCount; headIndex++)
+        for (var headIndex = 0; headIndex < _headCount; headIndex++)
         {
             int headStartIndex = headIndex * _headDimension;
             var queryForHead = queryProjection.GetRange(headStartIndex, _headDimension);
@@ -149,11 +149,11 @@ public class TinyJarvisModel
             // Compute scaled dot‑product attention scores against all past keys
             var attentionLogits = new List<Value>();
             int cachedPositionsCount = keysCache[layerIndex].Count;
-            for (int pastPosition = 0; pastPosition < cachedPositionsCount; pastPosition++)
+            for (var pastPosition = 0; pastPosition < cachedPositionsCount; pastPosition++)
             {
                 var keyForHead = keysCache[layerIndex][pastPosition].GetRange(headStartIndex, _headDimension);
                 var dotProduct = new Value(0);
-                for (int dimension = 0; dimension < _headDimension; dimension++)
+                for (var dimension = 0; dimension < _headDimension; dimension++)
                     dotProduct += queryForHead[dimension] * keyForHead[dimension];
                 attentionLogits.Add(dotProduct / Math.Sqrt(_headDimension));
             }
@@ -163,14 +163,14 @@ public class TinyJarvisModel
 
             // Weighted sum of values (this head's output)
             var headOutputValues = new List<Value>();
-            for (int dimension = 0; dimension < _headDimension; dimension++)
+            for (var dimension = 0; dimension < _headDimension; dimension++)
                 headOutputValues.Add(new Value(0));
 
-            for (int pastPosition = 0; pastPosition < cachedPositionsCount; pastPosition++)
+            for (var pastPosition = 0; pastPosition < cachedPositionsCount; pastPosition++)
             {
                 var valueForHead = valuesCache[layerIndex][pastPosition].GetRange(headStartIndex, _headDimension);
                 var weight = attentionWeights[pastPosition];
-                for (int dimension = 0; dimension < _headDimension; dimension++)
+                for (var dimension = 0; dimension < _headDimension; dimension++)
                     headOutputValues[dimension] += weight * valueForHead[dimension];
             }
 
@@ -179,7 +179,7 @@ public class TinyJarvisModel
 
         // Final linear projection and residual connection
         var attentionOutput = Helpers.Linear(concatenatedHeadOutputs, _stateDict[$"layer{layerIndex}.attn_wo"]);
-        for (int dimensionIndex = 0; dimensionIndex < _embeddingSize; dimensionIndex++)
+        for (var dimensionIndex = 0; dimensionIndex < _embeddingSize; dimensionIndex++)
             attentionOutput[dimensionIndex] += residualConnection[dimensionIndex];
 
         return attentionOutput;
@@ -197,7 +197,7 @@ public class TinyJarvisModel
 
         probabilities = Helpers.Linear(probabilities, _stateDict[$"layer{layerIndex}.mlp_fc2"]);
         
-        for (int embeddingIndex = 0; embeddingIndex < _embeddingSize; embeddingIndex++)
+        for (var embeddingIndex = 0; embeddingIndex < _embeddingSize; embeddingIndex++)
             probabilities[embeddingIndex] += xResidual[embeddingIndex];
         
 
@@ -230,8 +230,8 @@ public class TinyJarvisModel
         }
 
         // Reserve at least one slot for generation, but don't go over MaxSequenceLength
-        int maxPromptTokens = MaxSequenceLength - 1; // leave room for at least one generated token
-        int tokenCount = Math.Min(maxPromptTokens, allTokens.Count);
+        var maxPromptTokens = MaxSequenceLength - 1; // leave room for at least one generated token
+        var tokenCount = Math.Min(maxPromptTokens, allTokens.Count);
 
         // If the prompt is too long, you might want to truncate from the front, but here we just take the first tokenCount tokens.
         if (tokenCount < allTokens.Count)
@@ -245,20 +245,18 @@ public class TinyJarvisModel
         List<Value>? lastLogits = null;
 
         // Feed prompt tokens
-        for (int pos = 0; pos < tokenCount; pos++)
-        {
+        for (var pos = 0; pos < tokenCount; pos++)
             lastLogits = Forward(allTokens[pos], pos, keys, values);
-        }
 
-        int currentPos = tokenCount;
+        var currentPos = tokenCount;
         var generated = new List<int>();
 
-        for (int step = 0; step < maxNewTokens; step++)
+        for (var step = 0; step < maxNewTokens; step++)
         {
             // Ensure we have logits (should never be null if tokenCount > 0)
             if (lastLogits == null) break;
 
-            int nextToken = Helpers.SampleToken(lastLogits, temperature, topK, topP);
+            var nextToken = Helpers.SampleToken(lastLogits, temperature, topK, topP);
 
             generated.Add(nextToken);
             allTokens.Add(nextToken);
@@ -283,7 +281,7 @@ public class TinyJarvisModel
     public List<List<Value>>[] CreateKvCache()
     {
         var cache = new List<List<Value>>[_layerCount];
-        for (int i = 0; i < _layerCount; i++)
+        for (var i = 0; i < _layerCount; i++)
         {
             cache[i] = [];
         }

@@ -34,7 +34,7 @@ namespace Tiny.Jarvis.Tokenization
 
             // Build mapping: token string → integer ID
             var tokenToId = new Dictionary<string, int>();
-            for (int i = 0; i < allTokensList.Count; i++)
+            for (var i = 0; i < allTokensList.Count; i++)
                 tokenToId[allTokensList[i]] = i;
 
             // Assign your fields exactly as in your original code

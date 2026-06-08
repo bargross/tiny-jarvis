@@ -4,18 +4,11 @@ using ChatMessage = Tiny.Jarvis.Message.Models.Message;
 
 namespace Tiny.Jarvis.Message.Prompt
 {
-    public class ChatSession
+    public class ChatSession(TinyJarvisModel model, ITokenizer tokenizer, (string userPromptName, string botPromptName)? promptNames)
     {
-        private readonly TinyJarvisModel _model;
-        private readonly ITokenizer _tokenizer;
         private readonly List<ChatMessage> _history = new();
-        private bool _running = true;  // optional if you want external control
 
-        public ChatSession(TinyJarvisModel model, ITokenizer tokenizer)
-        {
-            _model = model;
-            _tokenizer = tokenizer;
-        }
+        private bool _running = true;  // optional if you want external control
 
         public void Run()
         {
@@ -24,7 +17,7 @@ namespace Tiny.Jarvis.Message.Prompt
             while (_running)
             {
                 Console.Write("You: ");
-                var inputMessage = ChatInput.GetUserInput();
+                var inputMessage = ChatInput.GetUserInput(promptNames?.userPromptName);
 
                 // Termination check
                 if (string.IsNullOrEmpty(inputMessage.Content) ||
@@ -41,24 +34,24 @@ namespace Tiny.Jarvis.Message.Prompt
                 Console.WriteLine(Environment.NewLine);
 
                 // Build prompt with history
-                var prompt = string.Join("\n", _history.Select(x => x.ToString())) + "\nassistant: ";
+                var prompt = string.Join(Environment.NewLine, _history.Select(x => x.ToString())) + Environment.NewLine + (promptNames?.botPromptName ?? "assistant: ");
 
                 // Get encoded sequence with Bos at the beginning
-                var tokens = _tokenizer.Encode(prompt);
+                var tokens = tokenizer.Encode(prompt);
 
-                Console.WriteLine($"BOS token: {_tokenizer.BOS}");
+                Console.WriteLine($"BOS token: {tokenizer.BOS}");
                 Console.WriteLine($"tokens before Generate is called: {string.Join(",", tokens)}");
 
-                var responseTokens = _model.Generate(tokens, maxNewTokens: 100, temperature: 0.8, topK: 50, topP: 0.95);
+                var responseTokens = model.Generate(tokens, maxNewTokens: 100, temperature: 0.8, topK: 50, topP: 0.95);
 
                 Console.WriteLine($"Generated response tokens: {string.Join(",", responseTokens)}");
-                var response = _tokenizer.Decode(responseTokens);
+                var response = tokenizer.Decode(responseTokens);
 
                 Console.WriteLine($"Generated response: {response}");
                 // Clean and display
                 response = CleanResponse(response);
                 
-                ChatOutput.Reply(response, _history);
+                ChatOutput.Reply(response, _history, promptNames?.botPromptName);
             }
         }
 

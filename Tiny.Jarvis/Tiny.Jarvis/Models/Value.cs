@@ -48,7 +48,7 @@ public class Value(double data, Value[]? inputs = null, double[]? localGrads = n
     public static Value Dot(IEnumerable<Value> a, IEnumerable<Value> b)
     {
         var result = new Value(0);
-        for (int i = 0; i < a.Count(); i++)
+        for (var i = 0; i < a.Count(); i++)
         {
             result += a.ElementAt(i) * b.ElementAt(i);
         }

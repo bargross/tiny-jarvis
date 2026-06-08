@@ -52,7 +52,7 @@ internal class AdamOptimiser
         }
 
         var currentLearningRate = _baseLearningRate * (1 - (double)step / _totalSteps);
-        for (int i = 0; i < _parameters.Count; i++)
+        for (var i = 0; i < _parameters.Count; i++)
         {
             Value p = _parameters[i];
             _momentum[i] = MomentumSmoothing * _momentum[i] + (1 - MomentumSmoothing) * p.Grad;

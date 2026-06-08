@@ -29,7 +29,7 @@ internal class BigramModel
         foreach (string doc in docs)
         {
             var tokens = Tokenizer.Encode(doc);
-            for (int i = 0; i < tokens.Count - 1; i++)
+            for (var i = 0; i < tokens.Count - 1; i++)
             {
                 counts[tokens[i], tokens[i + 1]]++;
             }
@@ -93,7 +93,7 @@ internal class BigramModel
     public void PrintSamples(int count, Random random)
     {
         Console.WriteLine("\n--- bigram samples ---");
-        for (int s = 0; s < count; s++)
+        for (var s = 0; s < count; s++)
         {
             Console.WriteLine($"sample {s + 1,2}: {Generate(random)}");
         }
