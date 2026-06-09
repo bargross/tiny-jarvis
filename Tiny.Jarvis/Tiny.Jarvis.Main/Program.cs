@@ -120,12 +120,12 @@ List<string> SelectTrainingFile(string pathToDir, List<string> files)
     AddFile(pathToDir, files, filesAvailable);
 
     var fetch = true;
-    var posibleResponses = new[] { "y", "Yes", "Y", "YES" };
+    var posibleResponses = new[] { "y", "Y", "n", "N" };
     while(fetch)
     {
-        
+
         Console.WriteLine(Environment.NewLine);
-        Console.Write($"Fetch Another ({string.Join(",", posibleResponses)}): ");
+        Console.Write($"Fetch Another ({string.Join("/", posibleResponses)}): ");
         var userResponseInput = Console.ReadLine()?.ToLower();
 
         fetch = userResponseInput == "y" || userResponseInput == "yes";
@@ -134,6 +134,7 @@ List<string> SelectTrainingFile(string pathToDir, List<string> files)
 
         else break;
     }
+    Console.WriteLine(Environment.NewLine);
 
     return files;
 }
