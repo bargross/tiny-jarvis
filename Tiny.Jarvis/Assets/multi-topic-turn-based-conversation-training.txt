@@ -523,3 +523,242 @@ user: what is model view controller? assistant: separates concerns user: mvc? as
 user: what is a crud operation? assistant: create read update delete user: database basics? assistant: yes
 user: what is a graph database? assistant: stores nodes and edges user: neo4j? assistant: example
 user: what is a time complexity? assistant: how time grows with input user: o of n squared? assistant: slow for large data
+user: what is a cpu? assistant: central processing unit user: what is clock speed? assistant: cycles per second measured in ghz
+user: what is ram? assistant: random access memory user: volatile? assistant: loses data when power off
+user: what is a hard drive? assistant: stores data persistently user: ssd faster? assistant: yes no moving parts
+user: what is an operating system? assistant: manages hardware and software user: windows linux macos? assistant: examples
+user: what is a kernel? assistant: core of os user: interacts with hardware? assistant: yes
+user: what is a driver? assistant: lets os talk to devices user: printer needs driver? assistant: yes
+user: what is a file system? assistant: organizes data on disk user: ntfs fat32? assistant: common
+user: what is a protocol? assistant: rules for communication user: tcp ip? assistant: internet foundation
+user: what is dns? assistant: translates domain to ip user: like phonebook? assistant: yes
+user: what is a router? assistant: forwards data between networks user: uses ip addresses? assistant: yes
+user: what is a switch? assistant: connects devices within network user: uses mac addresses? assistant: yes
+user: what is a firewall? assistant: blocks unauthorized access user: hardware or software? assistant: both
+user: what is a vpn? assistant: encrypts internet traffic user: hides ip address? assistant: yes
+user: what is a proxy? assistant: intermediary for requests user: can bypass censorship? assistant: sometimes
+user: what is cloud storage? assistant: data stored on remote servers user: dropbox google drive? assistant: examples
+user: what is a hypervisor? assistant: runs virtual machines user: type 1 bare metal? assistant: esxi kvm
+user: what is a container runtime? assistant: runs containers user: docker containerd? assistant: yes
+user: what is a registry? assistant: stores container images user: docker hub? assistant: public
+user: what is infrastructure as code? assistant: manages infra via config files user: terraform? assistant: popular
+user: what is configuration management? assistant: automates server setup user: ansible puppet? assistant: yes
+user: what is a pipeline? assistant: automated ci cd workflow user: github actions? assistant: example
+user: what is a build tool? assistant: compiles and packages code user: maven gradle? assistant: for java
+user: what is a linter? assistant: checks code style user: eslint for javascript? assistant: yes
+user: what is a formatter? assistant: auto formats code user: prettier? assistant: common
+user: what is a debug symbol? assistant: maps machine code to source user: helps debugging? assistant: yes
+user: what is a profiler? assistant: measures performance user: finds bottlenecks? assistant: yes
+user: what is a tracer? assistant: follows execution path user: strace ltrace? assistant: linux tools
+user: what is a log file? assistant: records events user: used for debugging? assistant: yes
+user: what is a metric? assistant: numerical measurement user: cpu usage? assistant: common
+user: what is an alert? assistant: notifies of anomalies user: prometheus alertmanager? assistant: yes
+user: what is a dashboard? assistant: visualizes metrics user: grafana? assistant: popular
+user: what is a distributed system? assistant: multiple computers working together user: challenges? assistant: consistency latency faults
+user: what is consensus? assistant: agreement among nodes user: paxos raft? assistant: algorithms
+user: what is a leader election? assistant: chooses coordinator in cluster user: raft uses? assistant: randomized timeouts
+user: what is a quorum? assistant: minimum votes needed user: majority? assistant: common
+user: what is a replicated log? assistant: copies of log across nodes user: used in distributed databases? assistant: yes
+user: what is a shard? assistant: partition of data user: horizontal scaling? assistant: yes
+user: what is a replica? assistant: copy of data for redundancy user: leader follower? assistant: typical
+user: what is a gossip protocol? assistant: nodes spread info randomly user: uses epidemic? assistant: yes
+user: what is a crdt? assistant: conflict free replicated data type user: no coordination needed? assistant: yes
+user: what is a vector clock? assistant: tracks causality in distributed systems user: avoids ordering issues? assistant: yes
+user: what is a bloom filter? assistant: probabilistic set membership user: false positives possible? assistant: no false negatives
+user: what is a hyperloglog? assistant: approximates distinct count user: memory efficient? assistant: yes
+user: what is a consistent hash? assistant: minimizes rehashing when nodes change user: used in caches? assistant: yes
+user: what is a circuit breaker? assistant: stops calls to failing service user: prevents cascading failures? assistant: yes
+user: what is a retry policy? assistant: resends failed requests user: exponential backoff? assistant: common
+user: what is a timeout? assistant: limits wait time for response user: prevents hanging? assistant: yes
+user: what is a rate limiter? assistant: controls request frequency user: token bucket? assistant: algorithm
+user: what is a load shedder? assistant: drops excess requests user: protects system from overload? assistant: yes
+user: what is a health check? assistant: verifies service availability user: http endpoint? assistant: typical
+user: what is a service mesh? assistant: infrastructure layer for microservices user: istio linkerd? assistant: examples
+user: what is a sidecar? assistant: helper process attached to main container user: used in service mesh? assistant: yes
+user: what is an api gateway? assistant: single entry for microservices user: routing authentication? assistant: yes
+user: what is a backpressure? assistant: slows producer when consumer busy user: prevents overwhelming? assistant: yes
+user: what is a circuit diagram? assistant: electrical schematic user: shows components and connections? assistant: yes
+user: what is a resistor? assistant: limits current user: measured in ohms? assistant: yes
+user: what is a capacitor? assistant: stores electric charge user: used in filters? assistant: yes
+user: what is an inductor? assistant: stores energy in magnetic field user: opposes current changes? assistant: yes
+user: what is a diode? assistant: allows current one direction user: used in rectifiers? assistant: yes
+user: what is a transistor? assistant: amplifies or switches signals user: building block of processors? assistant: yes
+user: what is a logic gate? assistant: performs boolean function user: and or not? assistant: basic
+user: what is a flip flop? assistant: stores one bit user: used in registers? assistant: yes
+user: what is a clock signal? assistant: synchronizes digital circuits user: square wave? assistant: typical
+user: what is a register? assistant: fast storage inside cpu user: holds operands? assistant: yes
+user: what is a cache memory? assistant: small fast memory near cpu user: l1 l2 l3? assistant: levels
+user: what is a pipeline? assistant: overlaps instruction execution user: improves throughput? assistant: yes
+user: what is a branch predictor? assistant: guesses which way code will branch user: reduces stalls? assistant: yes
+user: what is a superscalar? assistant: executes multiple instructions per cycle user: needs multiple execution units? assistant: yes
+user: what is out of order execution? assistant: reorders instructions for efficiency user: preserves logical order? assistant: yes
+user: what is simd? assistant: single instruction multiple data user: speeds up vector operations? assistant: yes
+user: what is a gpu? assistant: graphics processing unit user: many cores for parallel tasks? assistant: yes
+user: what is cuda? assistant: nvidia's parallel computing platform user: runs kernels on gpu? assistant: yes
+user: what is opencl? assistant: open standard for parallel programming user: runs on cpu gpu fpga? assistant: yes
+user: what is a fpga? assistant: field programmable gate array user: reconfigurable hardware? assistant: yes
+user: what is an asic? assistant: application specific integrated circuit user: custom for one task? assistant: bitcoin miners
+user: what is a microcontroller? assistant: small computer on chip user: arduino? assistant: popular
+user: what is a raspberry pi? assistant: single board computer user: runs linux? assistant: yes
+user: what is iot? assistant: internet of things user: smart devices connected? assistant: yes
+user: what is a sensor? assistant: measures physical quantity user: temperature pressure? assistant: examples
+user: what is an actuator? assistant: moves or controls mechanism user: motor solenoid? assistant: yes
+user: what is a protocol stack? assistant: layers of communication protocols user: tcp ip has four layers? assistant: yes
+user: what is ethernet? assistant: wired networking standard user: uses mac addresses? assistant: yes
+user: what is wifi? assistant: wireless networking user: uses radio waves? assistant: yes
+user: what is bluetooth? assistant: short range wireless user: used for headphones? assistant: yes
+user: what is zigbee? assistant: low power wireless for iot user: mesh networking? assistant: yes
+user: what is lora? assistant: long range low power user: for iot sensors? assistant: yes
+user: what is 5g? assistant: fifth generation cellular user: low latency high speed? assistant: yes
+user: what is edge computing? assistant: processing near data source user: reduces latency? assistant: yes
+user: what is fog computing? assistant: layer between cloud and edge user: adds intelligence? assistant: yes
+user: what is a data center? assistant: facility with many servers user: cooling and power? assistant: needed
+user: what is a ups? assistant: uninterruptible power supply user: protects against outages? assistant: yes
+user: what is a raid? assistant: redundant array of independent disks user: protects against drive failure? assistant: yes
+user: what is a backup? assistant: copy of data for recovery user: 3 2 1 rule? assistant: three copies two media one offsite
+user: what is disaster recovery? assistant: plans to restore after catastrophe user: includes rpo and rto? assistant: recovery point and time objectives
+user: what is high availability? assistant: system uptime above 99.9 percent user: uses redundancy? assistant: yes
+user: what is a sla? assistant: service level agreement user: defines expected performance? assistant: yes
+user: what is a kpi? assistant: key performance indicator user: measures success? assistant: yes
+user: what is aql? assistant: acceptance quality limit user: used in sampling inspection? assistant: yes
+user: how do computers understand code? assistant: they turn it into simple on off signals user: so binary? assistant: yep, zeros and ones all the way down
+user: what's a loop in programming? assistant: tells computer to do the same thing over and over user: like a broken record? assistant: but hopefully not broken
+user: why is python so popular? assistant: easy to read and lots of libraries user: good for beginners? assistant: the best place to start
+user: what's a byte? assistant: eight bits, enough for one letter user: like the letter a? assistant: exactly
+user: what's the command line? assistant: typing instructions instead of clicking icons user: scary at first? assistant: but super powerful
+user: what's a semicolon for in c sharp? assistant: ends a statement, like a period in a sentence user: forget it and code breaks? assistant: yep, classic beginner mistake
+user: what's a string? assistant: text inside quotes, like hello world user: can be empty? assistant: sure, empty string is just two quotes
+user: what's a boolean? assistant: true or false, nothing in between user: like a light switch? assistant: on or off, no dimmer
+user: what's a floating point error? assistant: computers can't represent decimals perfectly user: that's why 0.1 plus 0.2 is weird? assistant: exactly, not exactly 0.3
+user: why do we need versions? assistant: so you can go back if you mess up user: like save points in a game? assistant: yes but for code
+user: what's a null reference? assistant: trying to use something that doesn't exist user: causes crashes? assistant: the most common runtime error
+user: what's refactoring? assistant: cleaning up code without changing what it does user: like tidying your room? assistant: but your room stays the same room
+user: what's technical debt? assistant: shortcuts that make code messy long term user: pay interest later? assistant: slower development, bug fixes
+user: what's a framework? assistant: prebuilt pieces to help you build faster user: like legos for programmers? assistant: except you still need instructions
+user: what's a callback? assistant: code that runs later when something happens user: like when a button is clicked? assistant: exactly, event driven
+user: what's an anonymous function? assistant: a function without a name, used right away user: seems weird? assistant: handy for short tasks
+user: what's an interface? assistant: contract that says what a class can do user: but not how it does it? assistant: right, just promises
+user: what's a generic type? assistant: works with many data types without rewriting user: like a template? assistant: exactly, saves code
+user: what's a deadlock in code? assistant: two threads waiting for each other forever user: like two people saying after you? assistant: but neither ever moves
+user: what's a race condition? assistant: outcome depends on who finishes first user: hard to debug? assistant: very, happens rarely
+user: what's a memory leak? assistant: program keeps taking memory without releasing user: slows down computer eventually? assistant: until it crashes
+user: what's a build? assistant: turning source code into a running program user: takes time? assistant: depends on project size
+user: what's a release? assistant: a build that's ready for users user: has version number? assistant: like 1.0, 2.0
+user: what's a hotfix? assistant: quick patch to fix urgent bug user: no new features? assistant: just the fix
+user: what's a feature flag? assistant: turns a feature on or off without redeploying user: like a light switch? assistant: exactly, safe testing
+user: what's a canary release? assistant: roll out to small group first user: if they don't complain then everyone? assistant: or a bird dies
+user: what's a rollback? assistant: go back to previous version after a bad update user: life saver? assistant: biggest life saver
+user: what's an sdk? assistant: tools to build for a platform user: like making apps for iphone? assistant: yes includes libraries and docs
+user: what's an ide? assistant: your code editor on steroids user: vs code counts? assistant: definitely
+user: what's a snippet? assistant: small reusable piece of code user: copy paste? assistant: but smarter, can have placeholders
+user: what's a macro? assistant: records actions to replay later user: like excel macros? assistant: same idea
+user: why does weather have fronts? assistant: boundaries between hot and cold air user: cause storms? assistant: usually where action happens
+user: what's a high pressure system? assistant: sinking air, clear skies user: good for picnics? assistant: usually
+user: what's a low pressure system? assistant: rising air, clouds and rain user: bring an umbrella? assistant: good plan
+user: what's humidity? assistant: water vapor in the air user: sticky feeling? assistant: that's high humidity
+user: what's dew point? assistant: temperature where water condenses user: fog happens? assistant: when air reaches dew point
+user: why do clouds look fluffy? assistant: water droplets clustering together user: but some are flat? assistant: different types, cirrus are wispy
+user: what's a cumulonimbus? assistant: towering storm cloud user: produces thunder? assistant: and hail sometimes
+user: what's a microburst? assistant: small but intense downdraft during storm user: dangerous for planes? assistant: very
+user: what's the jet stream? assistant: fast flowing air river high up user: pilots use it to save fuel? assistant: ride the current
+user: what's el nino? assistant: warm pacific water shifts weather patterns user: causes floods and droughts? assistant: global effects
+user: what's la nina? assistant: cool pacific, opposite of el nino user: also causes chaos? assistant: different chaos
+user: why do leaves change color in fall? assistant: less sunlight, green pigment breaks down user: reveals orange and red? assistant: always there but hidden
+user: what's a heatwave? assistant: unusually hot lasting days user: dangerous for elderly? assistant: and pets
+user: what's a cold snap? assistant: sudden cold weather user: pipes can freeze? assistant: yes
+user: who was cleopatra? assistant: last pharaoh of egypt, not egyptian by birth user: greek? assistant: macedonian greek dynasty
+user: what was the silk road? assistant: ancient trade route linking china to europe user: silk, spices, ideas? assistant: and diseases sadly
+user: who was genghis khan? assistant: mongol leader who built huge empire user: ruthless? assistant: but also promoted trade and law
+user: what was the black death? assistant: plague that killed half of europe user: spread by fleas on rats? assistant: yep, medieval nightmare
+user: what was the colosseum used for? assistant: gladiator fights and public spectacles user: could they flood it for boat battles? assistant: yes, roman engineering crazy
+user: who was joan of arc? assistant: french peasant who led armies then burned at stake user: teenager? assistant: around 17
+user: what was the printing press? assistant: gutenberg's machine for mass producing books user: changed everything? assistant: ideas spread fast
+user: what was the enlightenment? assistant: period valuing reason over tradition user: inspired revolutions? assistant: american and french
+user: who was marie curie? assistant: discovered radioactivity, won two nobels user: died from radiation exposure? assistant: notebooks still radioactive
+user: what was the space race? assistant: cold war competition to reach the moon user: us won? assistant: apollo 11 landed 1969
+user: who was neil armstrong? assistant: first human on the moon user: famous words? assistant: one small step for man
+user: what's dark matter? assistant: invisible stuff that holds galaxies together user: can't see it? assistant: only by gravity
+user: what's a red dwarf? assistant: small cool star that burns for trillions of years user: longer than universe's age? assistant: much longer
+user: what's a blue giant? assistant: very hot massive star, lives only millions of years user: goes supernova? assistant: likely
+user: what's a white dwarf? assistant: core of dead star, earth sized user: glows from leftover heat? assistant: fades over time
+user: what's a neutron star? assistant: crushed core of a massive star, super dense user: spoonful weighs tons? assistant: billions of tons
+user: what's a pulsar? assistant: neutron star that beams radio waves like a lighthouse user: regular ticking? assistant: super precise
+user: what's a magnetar? assistant: neutron star with insane magnetic field user: can distort atoms? assistant: yes
+user: what's a quasar? assistant: super bright galactic core powered by black hole user: brightest things in universe? assistant: yes
+user: what's a blazar? assistant: quasar with jet pointing at earth user: looks extra bright? assistant: like a flashlight in your eyes
+user: what's a gravitational wave? assistant: ripple in space time from massive collisions user: ligo detected first one 2015? assistant: two black holes merging
+user: what's the hubble constant? assistant: how fast universe expands user: different measurements disagree? assistant: hubble tension problem
+user: what's the cosmic microwave background? assistant: leftover glow from big bang user: can we see it? assistant: as radio hiss
+user: what's inflation theory? assistant: universe expanded extremely fast right after big bang user: solves flatness problem? assistant: and horizon problem
+user: what's a wormhole? assistant: shortcut through space time, theoretical user: can we travel through? assistant: not proven to exist
+user: what's a white hole? assistant: opposite of black hole, spews matter out user: any found? assistant: probably not real
+user: what's the multiverse? assistant: many separate universes user: evidence? assistant: none yet, speculative
+user: what's the fermi paradox? assistant: if aliens exist, where are they? user: maybe they hide? assistant: or we are first
+user: what's a kardashev scale? assistant: measures civilization energy use user: type one uses planet, type two star? assistant: three whole galaxy
+user: what's a dyson sphere? assistant: hypothetical structure around a star to capture energy user: would block starlight? assistant: infrared signature
+user: what's a rogue planet? assistant: planet wandering without a star user: dark and cold? assistant: very
+user: what's a hot jupiter? assistant: gas giant orbiting very close to its star user: year lasts days? assistant: some hours
+user: what's a super earth? assistant: rocky planet bigger than earth smaller than neptune user: common in galaxy? assistant: most common type
+user: what's a mini neptune? assistant: gas planet smaller than neptune user: thick atmosphere? assistant: likely
+user: what's a water world? assistant: planet covered entirely by deep oceans user: possible life? assistant: maybe
+user: what's a tidally locked planet? assistant: one side always faces the star user: hot side freezing side? assistant: eternal sunrise terminator habitable?
+user: what's a circumbinary planet? assistant: orbits two stars like tatooine user: star wars was right? assistant: we found them
+user: what's a pulsar planet? assistant: planet orbiting a pulsar user: irradiated hell? assistant: probably
+user: what's a carbon planet? assistant: made mostly of diamond or graphite user: diamonds the size of mountains? assistant: but crushing gravity
+user: what's a heliosphere? assistant: bubble around our solar system from solar wind user: protects from cosmic rays? assistant: partially
+user: what's the oort cloud? assistant: icy sphere far beyond pluto user: source of comets? assistant: long period comets
+user: what's the kuiper belt? assistant: region of icy bodies past neptune user: pluto is there? assistant: largest known
+user: what's a pluto? assistant: dwarf planet, not a full planet anymore user: demoted? assistant: planetary scientists still debate
+user: what's a moon? assistant: natural satellite orbiting a planet user: jupiter has most? assistant: over 80 known
+user: what's a shepherd moon? assistant: small moon that clears gaps in rings user: keeps rings tidy? assistant: yes
+user: what's a co orbital moon? assistant: two moons sharing similar orbit user: like janus and epimetheus? assistant: swap positions every few years
+user: what's a kernel panic? assistant: operating system's way of saying i give up user: like blue screen of death? assistant: same thing but on mac or linux
+user: what's a core dump? assistant: snapshot of memory when program crashes user: useful for debugging? assistant: sometimes, if you can read it
+user: what's a stack overflow? assistant: when recursion goes too deep, or the website user: the website named after the error? assistant: yep
+user: what's a hash collision? assistant: two different inputs producing same hash value user: bad for security? assistant: can be exploited
+user: what's a salt in cryptography? assistant: random data added before hashing user: makes rainbow tables useless? assistant: exactly
+user: what's a side channel attack? assistant: exploiting unintended information like power usage user: or sound from keyboard? assistant: even timings can leak secrets
+user: what's a social engineering? assistant: tricking people instead of breaking computers user: most common hack? assistant: sadly yes, people are trusting
+user: what's a zero day? assistant: vulnerability unknown to the vendor user: powerful in wrong hands? assistant: very
+user: what's a botnet? assistant: network of infected computers controlled remotely user: used for ddos? assistant: or spam
+user: what's a honeypot? assistant: fake system to attract attackers user: traps them? assistant: observes their methods
+user: what's a bug bounty? assistant: paying hackers to find vulnerabilities user: companies do this? assistant: google, microsoft, many
+user: what's a rootkit? assistant: malware hiding deep in operating system user: hard to detect? assistant: very
+user: what's a keylogger? assistant: records every key you type user: steals passwords? assistant: dangerous
+user: what's a man in the middle attack? assistant: intercepting communication between two parties user: public wifi risky? assistant: that's why we use https
+user: what's a replay attack? assistant: capturing data and sending it again later user: to trick the receiver? assistant: needs encryption to prevent
+user: what's a phishing email? assistant: fake message pretending to be legitimate user: never click links? assistant: check sender first
+user: what's two factor authentication? assistant: something you know plus something you have user: password plus phone code? assistant: much safer
+user: what's a passkey? assistant: new standard replacing passwords with biometrics or pin user: harder to phish? assistant: yes
+user: what's a vpn leak? assistant: when your real ip slips out of the vpn tunnel user: defeats the purpose? assistant: check for leaks
+user: what's a tor network? assistant: routes traffic through multiple relays for anonymity user: slow but private? assistant: trade off
+user: what's a blockchain? assistant: distributed ledger, each block linked to previous user: beyond cryptocurrency? assistant: supply chain, voting
+user: what's a smart contract? assistant: code that executes automatically on blockchain user: no middleman? assistant: but code bugs can be costly
+user: what's proof of work? assistant: mining, solving puzzles to validate transactions user: uses lots of electricity? assistant: huge criticism
+user: what's proof of stake? assistant: validators based on coins held, less energy user: ethereum uses now? assistant: yes after the merge
+user: what's a fork in crypto? assistant: when blockchain splits into two user: hard fork vs soft fork? assistant: hard requires all nodes upgrade
+user: what's a stablecoin? assistant: cryptocurrency pegged to stable asset like dollar user: usdc, usdt? assistant: yes
+user: what's a whale in crypto? assistant: someone holding huge amount of coins user: can move markets? assistant: definitely
+user: what's a pump and dump? assistant: artificially inflating price then selling user: illegal in stocks, crypto grey area? assistant: still scam
+user: what's a rug pull? assistant: developers abandon project and run with money user: common in defi? assistant: very
+user: what's an airdrop? assistant: free tokens distributed to wallet holders user: marketing tactic? assistant: often
+user: what's a private key? assistant: secret number that controls your crypto user: never share it? assistant: lose it, lose your coins
+user: what's a hardware wallet? assistant: physical device storing private keys offline user: safest for large amounts? assistant: yes
+user: what's a dusting attack? assistant: tiny amounts of crypto sent to many wallets to track user: privacy risk? assistant: can deanonymize
+user: what's a flash loan? assistant: borrow and repay within same transaction block user: exploited in hacks? assistant: many times
+user: what's a oraclize? assistant: service bringing external data to blockchain user: needed for smart contracts? assistant: price feeds, weather
+user: what's a multichain? assistant: interoperating across different blockchains user: bridges can be hacked? assistant: unfortunately yes
+user: what's a sidechain? assistant: separate blockchain attached to main chain user: faster transactions? assistant: but security tradeoffs
+user: what's a layer two? assistant: protocol built on top of blockchain for scaling user: lightning network for bitcoin? assistant: yes
+user: what's a node in crypto? assistant: computer running blockchain software user: full node stores entire history? assistant: helps decentralization
+user: what's a validator? assistant: participant who confirms transactions in proof of stake user: earns rewards? assistant: but can be penalized
+user: what's a mempool? assistant: waiting area for unconfirmed transactions user: miners pick from here? assistant: higher fee gets priority
+user: what's a nonce? assistant: number used once in cryptography user: in bitcoin mining, changes hash input? assistant: exactly
+user: what's a merkle tree? assistant: tree structure where leaves are transaction hashes user: efficiently verify inclusion? assistant: used in block headers
+user: what's a utxo? assistant: unspent transaction output in bitcoin user: like coins waiting to be spent? assistant: model different from accounts
+user: what's a genesis block? assistant: first block of a blockchain user: hardcoded, all others build on it? assistant: yes
+user: what's an orphan block? assistant: valid block not part of main chain user: happens with near simultaneous mining? assistant: rare
+user: what's a 51 percent attack? assistant: mining pool controlling majority of hash power user: can double spend? assistant: very bad
+user: what's a sybil attack? assistant: creating many fake identities to gain influence user: blockchains resistant? assistant: proof of work helps
+user: what's a eclipse attack? assistant: isolating a node from the network user: feeds false information? assistant: can fool that node
+user: what's a dan kaminsky? assistant: security researcher who found massive dns flaw user: fixed quickly? assistant: yes 2008
