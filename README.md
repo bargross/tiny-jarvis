@@ -1,6 +1,6 @@
 # Tiny-Jarvis: Building a Tiny LLM from Scratch in C# – Project Documentation
 
-This document provides a comprehensive overview of the **Tiny-Jarvis** project – a from‑scratch implementation of a small transformer‑based language model (LLM) written entirely in C#. The goal was to understand the fundamental components of LLMs, debug common training issues, and create a working miniature conversational model. The project includes custom autograd (`Value`), transformer blocks, attention, feed‑forward networks, character‑level tokenization, and training loops. Below is a detailed account of the architecture, hyperparameters, encountered bugs, fixes, performance optimisations, and future plans.
+This document provides a comprehensive overview of **Tiny-Jarvis** – a from‑scratch implementation of a small transformer‑based language model (LLM) written entirely in C#. The goal was to understand the fundamental components of LLMs, debug common training issues, and create a working miniature conversational model. The project includes custom autograd (`Value`), transformer blocks, attention, feed‑forward networks, character‑level tokenization, and training loops. Below is a detailed account of the architecture, hyperparameters, encountered bugs, fixes, performance optimisations, and future plans.
 
 ---
 
