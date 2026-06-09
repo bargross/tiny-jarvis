@@ -6,7 +6,7 @@ This document provides a comprehensive overview of **Tiny-Jarvis** – a from‑
 
 ## 1. Core Architecture
 
-The model is implemented in `TinyJarvisModel` (originally named `TinyJarvisModel`). It replicates the GPT‑style decoder‑only transformer.
+The model replicates the GPT‑style decoder‑only transformer.
 
 ### 1.1 Components
 
@@ -44,6 +44,13 @@ Every operation (addition, multiplication, ReLU, softmax, etc.) creates a `Value
 ### 1.4 Tokenization
 
 Initially we attempted a custom WordPiece trainer but faced performance and correctness issues. We fell back to a **character‑level tokenizer** that maps each character to a unique ID. Special tokens added: `[UNK]` (ID 0), `[BOS]` (ID 1), `[EOS]` (ID 2). This simplified debugging and is sufficient for a tiny LLM.
+
+The project contains 4 tokenizers:
+
+- A simple `Character` tokenizer
+- A `Unigram` tokenizer
+- A `Word Piece` tokenizer
+- A `Byte Pair Encoding` tokenizer
 
 ---
 
