@@ -259,7 +259,7 @@ Final fitness = weighted sum (clamped to [0,1]).
 ### Expected Benefits
 
 - **Automated tuning** – no more manual guessing of temperature/top‑k.
-- **Adaptation to the specific model and task** – the GA will find parameters that maximise the fitness function for the tiny LLM (TinyJarvis).
+- **Adaptation to the specific model and task** – the GA will find parameters that maximise the fitness function for the LLM (TinyJarvis).
 - **Exploration of extreme values** – the GA may discover that a low temperature (e.g., 0.4) with high top‑p produces the most coherent answers, or that high temperature (1.2) yields more creative (but less coherent) responses.
 
 This evolutionary approach directly implements the “self‑evolution” concept – the model learns to sample better without any weight updates, purely through meta‑optimisation of its inference parameters.
