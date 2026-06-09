@@ -159,7 +159,6 @@ public static class TinyJarvisModelTrainer
             }
 
             if (avgLoss < 1e-5) break; // if avg loss is 0, then break out as the model is not learning anything.
-
         }
 
         watch.Stop();
