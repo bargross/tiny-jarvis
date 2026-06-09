@@ -1,7 +1,7 @@
 using Tiny.Jarvis.Enums;
 using Tiny.Jarvis.Extensions;
 using Tiny.Jarvis.MLModels;
-using Tiny.Jarvis.Models;
+using Tiny.Jarvis.Training.Models;
 using Tiny.Jarvis.Optimization;
 using Tiny.Jarvis.Tokenization;
 using Tiny.Jarvis.Training.Orchestrators;
@@ -12,22 +12,24 @@ namespace Tiny.Jarvis.Training.Trainers;
 public static class TinyJarvisModelTrainer
 {
     public static (TinyJarvisModel, ITokenizer) Train(IEnumerable<string> docs, TokenizerStrategy strategy, int maxSequenceLength = 32, int totalNumberOfSteps = 10000, int vocabularySize = 50)
-    {        
+    {
+        // metrics
+        var watch = System.Diagnostics.Stopwatch.StartNew();
+
         // ── Hyperparameters ──────────────────────────────────────
 
-        int embeddingSize = 16;
-        int layerCount = 2; // just one transformer block for speed - try layerCount=2 to see improvement
-        int headCount = 4;
-        var learningRate = 0.01;
+        var embeddingSize = 32;
+        var layerCount = 4; // just one transformer block for speed - try layerCount=2 to see improvement
+        var headCount = 4;
+        var learningRate = 0.001;
         var startTime = DateTime.UtcNow;
 
         // ── Dataset and Tokenizer ────────────────────────────────
-
         var tokenizer = null as ITokenizer;
         switch (strategy)
         {
             case TokenizerStrategy.Chars:
-                tokenizer = TokenizerGenerator.GetTokenizer(strategy, ["abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 .,!?-'\""], vocabularySize);
+                tokenizer = TokenizerGenerator.GetTokenizer(strategy, ["abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 .,|!?-'\""], vocabularySize);
                 break;
 
             default:
@@ -38,17 +40,17 @@ public static class TinyJarvisModelTrainer
         Console.WriteLine($"num docs: {docs.Count()}");
         Console.WriteLine($"vocab size: {tokenizer.VocabSize}");
 
+        Console.WriteLine($"Training Start Time: {startTime}");
+
         // ── Model ────────────────────────────────────────────────
 
         var model = new TinyJarvisModel(
-            tokenizer.VocabSize,
             embeddingSize,
             headCount,
             layerCount,
             maxSequenceLength,
-            tokenizer.BOS, // give it the bos token to use later when using Generate
-            tokenizer.EOS, // eos tokent o signal end of function
-            new Random(42)
+            new Random(42),
+            tokenizer
         );
 
         Console.WriteLine($"num params: {model.Parameters.Count}");
@@ -70,7 +72,7 @@ public static class TinyJarvisModelTrainer
         var visited = new HashSet<Value>();
         var backwardStack = new Stack<(Value, int)>();
 
-        for (int step = 0; step < totalNumberOfSteps; step++)
+        for (var step = 0; step < totalNumberOfSteps; step++)
         {
             var doc = docs.ElementAt(step % docs.Count());
             var tokens = new List<int> { tokenizer.BOS };
@@ -79,24 +81,24 @@ public static class TinyJarvisModelTrainer
 
             tokens.Add(tokenizer.EOS); // mark the end of the sequence
 
-            // Any name longer than maxSequenceLength - 1 is silently truncated here.
-            int tokenCount = Math.Min(maxSequenceLength - 1, tokens.Count);
+            // Any sequence (word, sentence, etc...) longer than maxSequenceLength - 1 is silently truncated here.
+            var maxInputPositions = maxSequenceLength - 1;   // reserve one slot for generation - EOS token
+            var tokenCount = Math.Min(tokens.Count - 1, maxInputPositions);
 
-            List<List<Value>>[] keys = model.CreateKvCache();
-            List<List<Value>>[] values = model.CreateKvCache();
+            var keys = model.CreateKvCache();
+            var values = model.CreateKvCache();
 
             var loss = new Value(0);
 
-            for (int posId = 0; posId < tokenCount; posId++)
+            for (var posId = 0; posId < tokenCount; posId++)
             {
-                var token = tokens[posId];
+                var currentToken = tokens[posId];
+                var nextToken = tokens[posId + 1];
 
-                List<Value> logits = model.Forward(token, posId, keys, values);
-                List<Value> probabilities = Helpers.Softmax(logits);
+                var logits = model.Forward(currentToken, posId, keys, values);
 
-                if (posId < 0) continue;
-
-                loss += Helpers.CrossEntropyLoss(logits, token);
+                // loss is now calculated by CrossEntropyLoss instead of manually calculating via Softmax
+                loss += Helpers.CrossEntropyLoss(logits, nextToken);
             }
 
             loss *= 1.0 / tokenCount;
@@ -112,15 +114,8 @@ public static class TinyJarvisModelTrainer
             visited.Clear();
             backwardStack.Clear();
 
-            loss.SetDefaultGrad(1.0);
+            loss.Modify((_, grad) => grad = grad == default ? 1.0 : grad);
             loss.Backward(topo, visited, backwardStack);
-
-            // Debug
-            //if (step == 0 || step == 100)
-            //{
-            //    var someParam = model.Parameters[0];
-            //    Console.WriteLine($"Step {step}, param Data: {someParam.Data:F6}, Grad: {someParam.Grad:F6}");
-            //}
 
             optimiser.Step(step);
             var percentage = (step + 1) * 100.0 / totalNumberOfSteps;
@@ -142,15 +137,38 @@ public static class TinyJarvisModelTrainer
                 lastMilestoneLoss = avgLoss;
             }
 
+
+            // For debug during Training, to ensure the model is generating more coherent sentences, so basically to know its learning.
+            if ((step + 1) % 500 == 0)
+            {
+                Console.WriteLine(Environment.NewLine);
+                Console.WriteLine("\n--- Testing generation ---");
+                Console.WriteLine("\n--- Testing generation ---");
+
+                var testPrompt = "user: hello assistant:";
+                var promptIds = tokenizer.Encode(testPrompt).ToList();
+
+                promptIds.Insert(0, tokenizer.BOS);
+                var tokenIds = model.Generate(promptIds, maxNewTokens: 20, temperature: 0.8);
+
+                var response = tokenizer.Decode(tokenIds);
+
+                Console.WriteLine($"Prompt: {testPrompt}");
+                Console.WriteLine($"Response: {response}");
+                Console.WriteLine("--- End test ---\n");
+            }
+
+            if (avgLoss < 1e-5) break; // if avg loss is 0, then break out as the model is not learning anything.
         }
 
-        var endTime = DateTime.UtcNow;
-        var hoursDiff = endTime.Hour - startTime.Hour;
-        var minutesDiff = endTime.Minute - startTime.Minute;
-        var secondsDiff = endTime.Second - startTime.Second;
+        watch.Stop();
+
+        var secondsDiff = watch.ElapsedMilliseconds / 1000;
+        var minutesDiff = secondsDiff / 60;
+        var hoursDiff = minutesDiff / 60;
 
         Console.WriteLine($"Start time: {startTime}");
-        Console.WriteLine($"End of training at: {endTime}");
+        Console.WriteLine($"End time: {DateTime.UtcNow}");
         Console.WriteLine($"Training was completed in: {hoursDiff}H {minutesDiff}m {secondsDiff}s");
 
         return (model, tokenizer);

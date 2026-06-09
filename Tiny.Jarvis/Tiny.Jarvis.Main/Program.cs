@@ -35,6 +35,7 @@ void BeginChat()
     Console.WriteLine(Environment.NewLine);
     var docs = GetDocs(filePaths, random);
 
+
     // Train (or load) the model
     var (_model, _tokenizer) = TinyJarvisModelTrainer.Train(docs, tokenizerStrategy, maxSequenceLength, maxNumberOfSteps);
 
@@ -50,21 +51,31 @@ List<string> GetDocs(List<string> filePaths, Random random)
 {
     var filePathToFormat = filePaths.ToDictionary(path => path, path => Document.GetFormat(path));
     var docs = new List<string>();
+    string[] acceptableJsonFormats = ["json", "jsonl"];
 
     foreach (var kvp in filePathToFormat)
-        if (kvp.Value == "json")
-            switch(kvp.Key)
+        if (acceptableJsonFormats.Contains(kvp.Value)) {
+            
+            if (kvp.Key.Contains("passenger-register-titanic-dataset"))
+                docs.AddRange(Document.LoadFromJson<TitanicPassengerData>(kvp.Key, random).Select(x => x.ToString()));
+
+            if (kvp.Key.Contains("bitext-travel-llm-chatbot-training-dataset.jsonl")) 
             {
-                case "passenger-register-titanic-dataset":
-                    docs.AddRange(Document.LoadFromJson<TitanicPassenger>(kvp.Key, random).Select(x => x.ToString()));
-                    break;
-                case "bitext-travel-llm-chatbot-training-dataset":
-                    docs.AddRange(Document.LoadFromJson<BaggageQueryIntent>(kvp.Key, random).Select(x => x.ToString()));
-                    break;
-                case "pickle-dataset-all-training":
-                    docs.AddRange(Document.LoadFromJson<PickleDocument>(kvp.Key, random).SelectMany(doc => doc.Sentences).SelectMany(x => x));
-                    break;
+                var documents = Document.LoadFromJson<BaggageQueryIntentData>(kvp.Key, random);
+
+                docs.AddRange(documents.Select(x => x.ToString()));
             }
+
+            if (kvp.Key.Contains("pickle-dataset-all-training"))
+                docs.AddRange(Document.LoadFromJson<PickleDocument>(kvp.Key, random).SelectMany(doc => doc.Sentences).SelectMany(x => x));
+
+            if (kvp.Key.Contains("helpsteer-training"))
+            {
+                var documents = Document.LoadFromJson<PromptResponseData>(kvp.Key, random);
+
+                docs.AddRange(documents.Select(doc => doc.ToString()));
+            }
+        }
         else docs.AddRange(Document.LoadFromFile(kvp.Key, random));
 
     return docs;

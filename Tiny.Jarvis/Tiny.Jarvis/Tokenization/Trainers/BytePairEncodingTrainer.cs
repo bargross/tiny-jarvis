@@ -21,7 +21,7 @@
 
             var mergeRules = new List<(string Left, string Right)>();
 
-            for (int merge = 0; merge < numberOfMerges; merge++)
+            for (var merge = 0; merge < numberOfMerges; merge++)
             {
                 // Count all adjacent pairs across all words
                 var pairFrequencies = from wordWithTokens in currentTokenization

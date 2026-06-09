@@ -1,4 +1,5 @@
-﻿using System.Text.RegularExpressions;
+﻿using System.Text.Json;
+using System.Text.RegularExpressions;
 using Tiny.Jarvis.Extensions;
 
 namespace Tiny.Jarvis.Util
@@ -42,9 +43,32 @@ namespace Tiny.Jarvis.Util
                 throw new ArgumentException($"Unsupported file format: {fileFormat}, Supported formats are: csv, txt, json");
 
             var jsonString = File.ReadAllText(path);
-            var jsonData = System.Text.Json.JsonSerializer.Deserialize<List<TValue>>(jsonString);
+            if (fileFormat == "jsonl")
+            {
+                var list = new List<TValue>();
+                using (var reader = new StringReader(jsonString))
+                {
+                    string? line;
+                    while ((line = reader.ReadLine()) != null)
+                    {
+                        if (string.IsNullOrWhiteSpace(line)) continue;
+                        var item = JsonSerializer.Deserialize<TValue>(line);
+                        if (item != null) list.Add(item);
+                    }
+                }
+                return list;
+            }
 
-            return jsonData ?? new List<TValue>();
+            try
+            {
+                var jsonList = JsonSerializer.Deserialize<List<TValue>>(jsonString);
+
+                return jsonList ?? new List<TValue>();
+            }
+            catch (JsonException)
+            {
+                return new List<TValue>();
+            }
         }
 
         public static string GetFormat(string path) 

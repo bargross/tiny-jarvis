@@ -1,4 +1,4 @@
-﻿using Tiny.Jarvis.Models;
+﻿using Tiny.Jarvis.Training.Models;
 
 namespace Tiny.Jarvis.Extensions
 {
@@ -42,7 +42,7 @@ namespace Tiny.Jarvis.Extensions
 
             // Propagate gradients in reverse topological order
             // Grad = 1.0;
-            for (int i = topo.Count - 1; i >= 0; i--)
+            for (var i = topo.Count - 1; i >= 0; i--)
             {
                 var topoValue = topo[i];
                 if (topoValue.Grad == 0)
@@ -51,7 +51,7 @@ namespace Tiny.Jarvis.Extensions
                 if (topoValue.Inputs == null)
                     continue;
 
-                for (int j = 0; j < topoValue.Inputs.Length; j++)
+                for (var j = 0; j < topoValue.Inputs.Length; j++)
                     topoValue.Inputs[j].Grad += topoValue.LocalGrads[j] * topoValue.Grad;
             }
         }

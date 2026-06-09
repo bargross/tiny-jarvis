@@ -10,9 +10,9 @@
             {
                 foreach (var word in sentence.Split(' '))
                 {
-                    for (int start = 0; start < word.Length; start++)
+                    for (var start = 0; start < word.Length; start++)
                     {
-                        for (int end = start + 1; end <= Math.Min(start + 10, word.Length); end++) // limit substring length
+                        for (var end = start + 1; end <= Math.Min(start + 10, word.Length); end++) // limit substring length
                         {
                             seedVocabulary.Add(word.Substring(start, end - start));
                         }
@@ -112,7 +112,7 @@
         {
             // Viterbi (same as earlier but uses provided probabilities)
             var best = new Dictionary<int, (double LogProb, List<string> Tokens)> { [0] = (0.0, new List<string>()) };
-            for (int end = 1; end <= word.Length; end++)
+            for (var end = 1; end <= word.Length; end++)
             {
                 var candidates = from start in Enumerable.Range(0, end)
                                  let token = word.Substring(start, end - start)

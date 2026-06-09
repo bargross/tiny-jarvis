@@ -103,7 +103,7 @@ namespace Tiny.Jarvis.Tokenization.Trainers
                 // Limit max token length to 20 for performance (adjustable).
                 int maxTokenLen = Math.Min(length - position, 20);
                 //Console.WriteLine($"Max Token Length: {maxTokenLen} for Iteration: {iteration + 1}");
-                for (int tokenLen = maxTokenLen; tokenLen >= 1; tokenLen--)
+                for (var tokenLen = maxTokenLen; tokenLen >= 1; tokenLen--)
                 {
                     var candidate = word.Substring(position, tokenLen);
                     //Console.WriteLine($"Candidate {candidate} for token length: {tokenLen}.");

@@ -44,7 +44,7 @@ namespace Tiny.Jarvis.Tokenization
 
             // Assign consecutive IDs (UNK=0, BOS=1, then rest)
             var identifierToToken = new Dictionary<string, int>();
-            for (int i = 0; i < allTokens.Count; i++)
+            for (var i = 0; i < allTokens.Count; i++)
                 identifierToToken[allTokens[i]] = i;
 
             var tokenToIdentifier = identifierToToken.ToDictionary(kvp => kvp.Value, kvp => kvp.Key);
@@ -87,7 +87,7 @@ namespace Tiny.Jarvis.Tokenization
                 [0] = (0.0, new List<string>())
             };
 
-            for (int end = 1; end <= word.Length; end++)
+            for (var end = 1; end <= word.Length; end++)
             {
                 var candidates = from start in Enumerable.Range(0, end)
                                  let token = word.Substring(start, end - start)
