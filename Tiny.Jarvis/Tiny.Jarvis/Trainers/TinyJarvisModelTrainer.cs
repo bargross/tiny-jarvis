@@ -1,7 +1,7 @@
 using Tiny.Jarvis.Enums;
 using Tiny.Jarvis.Extensions;
 using Tiny.Jarvis.MLModels;
-using Tiny.Jarvis.Models;
+using Tiny.Jarvis.Training.Models;
 using Tiny.Jarvis.Optimization;
 using Tiny.Jarvis.Tokenization;
 using Tiny.Jarvis.Training.Orchestrators;
@@ -18,7 +18,7 @@ public static class TinyJarvisModelTrainer
 
         // ── Hyperparameters ──────────────────────────────────────
 
-        var embeddingSize = 64;
+        var embeddingSize = 32;
         var layerCount = 4; // just one transformer block for speed - try layerCount=2 to see improvement
         var headCount = 4;
         var learningRate = 0.001;
@@ -29,7 +29,7 @@ public static class TinyJarvisModelTrainer
         switch (strategy)
         {
             case TokenizerStrategy.Chars:
-                tokenizer = TokenizerGenerator.GetTokenizer(strategy, ["abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 .,!?-'\""], vocabularySize);
+                tokenizer = TokenizerGenerator.GetTokenizer(strategy, ["abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 .,|!?-'\""], vocabularySize);
                 break;
 
             default:
@@ -40,17 +40,17 @@ public static class TinyJarvisModelTrainer
         Console.WriteLine($"num docs: {docs.Count()}");
         Console.WriteLine($"vocab size: {tokenizer.VocabSize}");
 
+        Console.WriteLine($"Training Start Time: {startTime}");
+
         // ── Model ────────────────────────────────────────────────
 
         var model = new TinyJarvisModel(
-            tokenizer.VocabSize,
             embeddingSize,
             headCount,
             layerCount,
             maxSequenceLength,
-            tokenizer.BOS, // give it the bos token to use later when using Generate
-            tokenizer.EOS, // eos tokent o signal end of function
-            new Random(42)
+            new Random(42),
+            tokenizer
         );
 
         Console.WriteLine($"num params: {model.Parameters.Count}");
@@ -81,8 +81,8 @@ public static class TinyJarvisModelTrainer
 
             tokens.Add(tokenizer.EOS); // mark the end of the sequence
 
-            // Any name longer than maxSequenceLength - 1 is silently truncated here.
-            var maxInputPositions = maxSequenceLength - 1;   // reserve one slot for generation
+            // Any sequence (word, sentence, etc...) longer than maxSequenceLength - 1 is silently truncated here.
+            var maxInputPositions = maxSequenceLength - 1;   // reserve one slot for generation - EOS token
             var tokenCount = Math.Min(tokens.Count - 1, maxInputPositions);
 
             var keys = model.CreateKvCache();
@@ -92,10 +92,10 @@ public static class TinyJarvisModelTrainer
 
             for (var posId = 0; posId < tokenCount; posId++)
             {
-                var token = tokens[posId];
+                var currentToken = tokens[posId];
                 var nextToken = tokens[posId + 1];
 
-                var logits = model.Forward(token, posId, keys, values);
+                var logits = model.Forward(currentToken, posId, keys, values);
 
                 // loss is now calculated by CrossEntropyLoss instead of manually calculating via Softmax
                 loss += Helpers.CrossEntropyLoss(logits, nextToken);
@@ -128,10 +128,7 @@ public static class TinyJarvisModelTrainer
                 );
             }
 
-            if (step % 10 == 0)
-                Console.WriteLine($"Training Current Step: {step} / {totalNumberOfSteps}");
-
-                // Every 1000 steps, print a milestone showing overall progress.
+            // Every 1000 steps, print a milestone showing overall progress.
             if ((step + 1) % 1000 == 0)
             {
                 Console.WriteLine($"[milestone], avg. loss: {avgLoss:F4} (was {lastMilestoneLoss:F4})");
@@ -140,7 +137,28 @@ public static class TinyJarvisModelTrainer
                 lastMilestoneLoss = avgLoss;
             }
 
-            if (avgLoss < 1e-5) break;
+
+            // For debug during Training, to ensure the model is generating more coherent sentences, so basically to know its learning.
+            if ((step + 1) % 500 == 0)
+            {
+                Console.WriteLine(Environment.NewLine);
+                Console.WriteLine("\n--- Testing generation ---");
+                Console.WriteLine("\n--- Testing generation ---");
+
+                var testPrompt = "user: hello assistant:";
+                var promptIds = tokenizer.Encode(testPrompt).ToList();
+
+                promptIds.Insert(0, tokenizer.BOS);
+                var tokenIds = model.Generate(promptIds, maxNewTokens: 20, temperature: 0.8);
+
+                var response = tokenizer.Decode(tokenIds);
+
+                Console.WriteLine($"Prompt: {testPrompt}");
+                Console.WriteLine($"Response: {response}");
+                Console.WriteLine("--- End test ---\n");
+            }
+
+            if (avgLoss < 1e-5) break; // if avg loss is 0, then break out as the model is not learning anything.
 
         }
 

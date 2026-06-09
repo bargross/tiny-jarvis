@@ -1,4 +1,4 @@
-namespace Tiny.Jarvis.Models;
+namespace Tiny.Jarvis.Training.Models;
 
 public class Value(double data, Value[]? inputs = null, double[]? localGrads = null)
 {
@@ -35,24 +35,6 @@ public class Value(double data, Value[]? inputs = null, double[]? localGrads = n
 
     public void Modify(Action<double, double, Value[]?, double[]?> action) => action.Invoke(Data, Grad, _inputs, LocalGrads);
     public void Modify(Action<double, double> action) => action.Invoke(Data, Grad);
-
-    /// <summary>
-    /// Dot product of two lists of Values. The result is a single Value, and the local gradients are
-    /// computed with respect to each input Value.
-    /// </summary>
-    /// <param name="a">The first list of Values.</param>
-    /// <param name="b">The second list of Values.</param>
-    /// <returns>A single Value representing the dot product of the two lists.</returns>
-    public static Value Dot(IEnumerable<Value> a, IEnumerable<Value> b)
-    {
-        var result = new Value(0);
-        for (var i = 0; i < a.Count(); i++)
-        {
-            result += a.ElementAt(i) * b.ElementAt(i);
-        }
-
-        return result;
-    }
 
     // --- Convenience overloads ---
     public static Value operator +(Value a, double b) => a + new Value(b);

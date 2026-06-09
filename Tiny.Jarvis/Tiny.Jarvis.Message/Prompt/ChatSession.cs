@@ -4,7 +4,7 @@ using ChatMessage = Tiny.Jarvis.Message.Models.Message;
 
 namespace Tiny.Jarvis.Message.Prompt
 {
-    public class ChatSession(TinyJarvisModel model, ITokenizer tokenizer, (string userPromptName, string botPromptName)? promptNames)
+    public class ChatSession(TinyJarvisModel model, ITokenizer tokenizer)
     {
         private readonly List<ChatMessage> _history = new();
 
@@ -17,7 +17,7 @@ namespace Tiny.Jarvis.Message.Prompt
             while (_running)
             {
                 Console.Write("You: ");
-                var inputMessage = ChatInput.GetUserInput(promptNames?.userPromptName);
+                var inputMessage = ChatInput.GetUserInput("user");
 
                 // Termination check
                 if (string.IsNullOrEmpty(inputMessage.Content) ||
@@ -34,7 +34,8 @@ namespace Tiny.Jarvis.Message.Prompt
                 Console.WriteLine(Environment.NewLine);
 
                 // Build prompt with history
-                var prompt = string.Join(Environment.NewLine, _history.Select(x => x.ToString())) + Environment.NewLine + (promptNames?.botPromptName ?? "assistant: ");
+                var botPromptName = "assistant";
+                var prompt = string.Join(Environment.NewLine, _history.Select(x => x.ToString())) + $" {botPromptName}: ";
 
                 // Get encoded sequence with Bos at the beginning
                 var tokens = tokenizer.Encode(prompt);
@@ -51,7 +52,7 @@ namespace Tiny.Jarvis.Message.Prompt
                 // Clean and display
                 response = CleanResponse(response);
                 
-                ChatOutput.Reply(response, _history, promptNames?.botPromptName);
+                ChatOutput.Reply(response, _history, botPromptName);
             }
         }
 

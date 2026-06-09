@@ -19,8 +19,7 @@ namespace Tiny.Jarvis.Training.Models
         [JsonPropertyName("response")]
         public string Response { get; set; } = string.Empty;
 
-        public override string ToString() => $"Instruction: {Instruction} {Environment.NewLine} Response: {Response}";
-        public (string userPromptName, string botResponsePromptName) GetPromptNames => (nameof(Instruction), nameof(Response));
+        public override string ToString() => $"user: {Instruction}, response: {Response}";
 
     }
 }

@@ -1,5 +1,5 @@
 using Tiny.Jarvis.Extensions;
-using Tiny.Jarvis.Models;
+using Tiny.Jarvis.Training.Models;
 
 namespace Tiny.Jarvis.Util;
 
@@ -9,7 +9,7 @@ public static class Helpers
     /// Matrix-vector multiply. Each row of weights is multiplied element‑wise with input and summed.
     /// </summary>
     public static List<Value> Linear(List<Value> input, Value[][] weights) =>
-        [.. weights.SelectRow(row => Value.Dot(row, input))];
+        [.. weights.SelectRow(row => Dot(row, input))];
 
     /// <summary>
     /// Converts raw logits into a probability distribution using softmax.
@@ -29,6 +29,22 @@ public static class Helpers
         return exponentials
             .Select(exponential => exponential / sumOfExponentials)
             .ToList();
+    }
+
+    /// <summary>
+    /// Dot product of two lists of Values. The result is a single Value, and the local gradients are
+    /// computed with respect to each input Value.
+    /// </summary>
+    /// <param name="a">The first list of Values.</param>
+    /// <param name="b">The second list of Values.</param>
+    /// <returns>A single Value representing the dot product of the two lists.</returns>
+    public static Value Dot(IEnumerable<Value> inputs, IEnumerable<Value> weights)
+    {
+        var result = new Value(0);
+        for (var index = 0; index < inputs.Count(); index++)
+            result += inputs.ElementAt(index) * weights.ElementAt(index);
+        
+        return result;
     }
 
     /// <summary>
@@ -158,7 +174,7 @@ public static class Helpers
         return probabilities.Count - 1;   // Fallback (should never reach)
     }
 
-    public static Value CrossEntropyLoss(List<Value> logits, int targetTokenId)
+    public static Value CrossEntropyLoss(List<Value> logits, int nextTokenId)
     {
         // Find the maximum logit for numerical stability (prevents overflow in exp)
         var maxLogit = logits.Max(v => v.Data);
@@ -178,7 +194,7 @@ public static class Helpers
             softmaxProbabilities[i] = exponentiatedLogits[i] / sumOfExponentiatedLogits;
 
         // Extract the probability of the target token and compute negative log loss
-        var targetProbability = softmaxProbabilities[targetTokenId];
+        var targetProbability = softmaxProbabilities[nextTokenId];
         var clampedProbability = targetProbability < 1e-8 ? 1e-8 : targetProbability;
         var lossValue = -Math.Log(clampedProbability);
 
@@ -186,7 +202,7 @@ public static class Helpers
         //    d(loss)/d(logit_i) = softmaxProbability_i - (1 if i == target else 0)
         var localGradients = new double[logits.Count];
         for (var i = 0; i < logits.Count; i++)
-            localGradients[i] = softmaxProbabilities[i] - (i == targetTokenId ? 1.0 : 0.0);
+            localGradients[i] = softmaxProbabilities[i] - (i == nextTokenId ? 1.0 : 0.0);
 
         // Return a single Value node that encapsulates the loss and its local gradients
         return new Value(lossValue, logits.ToArray(), localGradients);

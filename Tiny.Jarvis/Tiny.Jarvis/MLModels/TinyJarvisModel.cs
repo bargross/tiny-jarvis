@@ -1,81 +1,95 @@
 using Tiny.Jarvis.Extensions;
 using Tiny.Jarvis.Util;
-using Tiny.Jarvis.Models;
+using Tiny.Jarvis.Training.Models;
+using Tiny.Jarvis.Tokenization;
 
 namespace Tiny.Jarvis.MLModels;
 
 public class TinyJarvisModel
 {
-    private readonly Dictionary<string, Value[][]> _stateDict;
+    // Embeddings
+    private readonly Value[][] _tokenEmbeddings;
+    private readonly Value[][] _positionEmbeddings;
+
+    // Per‑layer weights
+    private readonly List<LayerWeights> _layers;
+
+    // Output head
+    private readonly Value[][] _outputHead;
+
+    // Still need a flat list for optimiser
+    private List<Value> _allParameters;
+
     private readonly int _embeddingSize;
     private readonly int _headCount;
     private readonly int _layerCount;
     private readonly int _headDimension;
-    private readonly int _vocabularySize;
-    private readonly int _bosToken;
-    private readonly int _endOfSequenceToken;
 
-    private Value[][] TokenEmbeddings => _stateDict["wte"];
-    private Value[][] PositionEmbeddings => _stateDict["wpe"];
-    private Value[][] OutputProjection => _stateDict["lm_head"];
+    private readonly ITokenizer _tokenizer;
 
     /// <summary>All trainable parameters, flattened into a single list for the optimiser.</summary>
-    public List<Value> Parameters { get; }
     public int MaxSequenceLength { get; }
-    public int TotalTokenEmbeddings { get; }
-    public int TotalPositionEmbeddings { get; }
+    //public int TotalTokenEmbeddings { get; }
+    //public int TotalPositionEmbeddings { get; }
+    public IReadOnlyList<Value> Parameters
+    {
+        get
+        {
+            if (_allParameters == null)
+            {
+                _allParameters = _tokenEmbeddings?.SelectMany(row => row).ToList();
+                _allParameters.AddRange(_positionEmbeddings.SelectMany(row => row));
+
+                foreach (var layer in _layers)
+                {
+                    _allParameters.AddRange(layer.Query.SelectMany(row => row));
+                    _allParameters.AddRange(layer.Key.SelectMany(row => row));
+                    _allParameters.AddRange(layer.Value.SelectMany(row => row));
+                    _allParameters.AddRange(layer.Output.SelectMany(row => row));
+                    _allParameters.AddRange(layer.FeedForwardOne.SelectMany(row => row));
+                    _allParameters.AddRange(layer.FeedForwardTwo.SelectMany(row => row));
+                }
+
+                _allParameters.AddRange(_outputHead.SelectMany(row => row));
+            }
+            return _allParameters;
+        }
+    }
 
     public TinyJarvisModel(
-        int vocabSize,
         int embeddingSize,
         int headCount,
         int layerCount,
         int maxSequenceLength,
-        int bosToken,
-        int endOfSequenceToken,
-        Random random
+        Random random,
+        ITokenizer tokenizer
     )
     {
         _embeddingSize = embeddingSize;
         _headCount = headCount;
         _layerCount = layerCount;
         _headDimension = embeddingSize / headCount;
-        _vocabularySize = vocabSize;
-        _bosToken = bosToken;
-        _endOfSequenceToken = endOfSequenceToken;
+        _tokenizer = tokenizer;
 
-        _stateDict = new Dictionary<string, Value[][]>
+        _tokenEmbeddings = Helpers.CreateMatrix(random, _tokenizer.VocabSize, embeddingSize);
+        _positionEmbeddings = Helpers.CreateMatrix(random, maxSequenceLength, embeddingSize);
+        _outputHead = Helpers.CreateMatrix(random, _tokenizer.VocabSize, embeddingSize);
+
+        _layers = new List<LayerWeights>();
+        for (int i = 0; i < layerCount; i++)
         {
-            ["wte"] = Helpers.CreateMatrix(random, vocabSize, embeddingSize),
-            ["wpe"] = Helpers.CreateMatrix(random, maxSequenceLength, embeddingSize),
-            ["lm_head"] = Helpers.CreateMatrix(random, vocabSize, embeddingSize),
-        };
-
-        for (var layerIndex = 0; layerIndex < layerCount; layerIndex++)
-        {
-            // Attention weight matrices (Query, Key, Value, Output)
-            _stateDict[$"layer{layerIndex}.attn_wq"] = Helpers.CreateMatrix(random, embeddingSize, embeddingSize);
-            _stateDict[$"layer{layerIndex}.attn_wk"] = Helpers.CreateMatrix(random, embeddingSize, embeddingSize);
-            _stateDict[$"layer{layerIndex}.attn_wv"] = Helpers.CreateMatrix(random, embeddingSize, embeddingSize);
-            _stateDict[$"layer{layerIndex}.attn_wo"] = Helpers.CreateMatrix(random, embeddingSize, embeddingSize);
-
-            // Feed‑forward network (first layer expands by factor 4, second contracts back)
-            int expandedSize = 4 * embeddingSize;
-
-            _stateDict[$"layer{layerIndex}.mlp_fc1"] = Helpers.CreateMatrix(random, expandedSize, embeddingSize);
-            _stateDict[$"layer{layerIndex}.mlp_fc2"] = Helpers.CreateMatrix(random, embeddingSize, expandedSize);
+            _layers.Add(new LayerWeights
+            {
+                Query = Helpers.CreateMatrix(random, embeddingSize, embeddingSize),
+                Key = Helpers.CreateMatrix(random, embeddingSize, embeddingSize),
+                Value = Helpers.CreateMatrix(random, embeddingSize, embeddingSize),
+                Output = Helpers.CreateMatrix(random, embeddingSize, embeddingSize),
+                FeedForwardOne = Helpers.CreateMatrix(random, 4 * embeddingSize, embeddingSize),
+                FeedForwardTwo = Helpers.CreateMatrix(random, embeddingSize, 4 * embeddingSize)
+            });
         }
 
         MaxSequenceLength = maxSequenceLength;
-
-        // Dictionary<TKey,TValue> enumeration order is not guaranteed by the spec.
-        // In .NET Core+ it preserves insertion order in practice, so Adam's momentum[]/squaredGradAvg[]
-        // line up across runs - but if that implementation detail ever changes, switch
-        // to a List<KeyValuePair<string, ...>> to make the order explicit.
-        Parameters = _stateDict.Values.SelectMany(mat => mat).SelectMany(row => row).ToList();
-
-        TotalPositionEmbeddings = PositionEmbeddings.Length;
-        TotalTokenEmbeddings = TokenEmbeddings.Length;
     }
 
     public List<Value> Forward(
@@ -83,24 +97,21 @@ public class TinyJarvisModel
         int posId,
         List<List<Value>>[] keys,
         List<List<Value>>[] values
-    )
-    {
+    ) {
         // validate ids
-        if (tokenId < 0 || tokenId >= TokenEmbeddings.Length)
-            throw new ArgumentOutOfRangeException(nameof(tokenId), $"tokenId {tokenId} is out of bounds for vocab size {TokenEmbeddings.Length}");
+        if (tokenId < 0 || tokenId >= _tokenEmbeddings.Length)
+            throw new ArgumentOutOfRangeException(nameof(tokenId), $"tokenId {tokenId} is out of bounds for vocab size {_tokenEmbeddings.Length}");
 
-        if (posId < 0 || posId >= PositionEmbeddings.Length)
-            throw new ArgumentOutOfRangeException(nameof(posId), $"posId {posId} is out of bounds for position embedding size {PositionEmbeddings.Length}");
+        if (posId < 0 || posId >= _positionEmbeddings.Length)
+            throw new ArgumentOutOfRangeException(nameof(posId), $"posId {posId} is out of bounds for position embedding size {_positionEmbeddings.Length}");
 
         // use ids directly (remove the -1 adjustment)
-        var tokenEmbedding = TokenEmbeddings.GetRow(tokenId);
-        var positionEmbedding = PositionEmbeddings.GetRow(posId);
+        var tokenEmbedding = _tokenEmbeddings.GetRow(tokenId);
+        var positionEmbedding = _positionEmbeddings.GetRow(posId);
 
         var probabilities = new List<Value>();
         for (var i = 0; i < _embeddingSize; i++)
-        {
             probabilities.Add(tokenEmbedding[i] + positionEmbedding[i]);
-        }
 
         // Initial RmsNorm: stabilises the embeddings before entering the first block.
         // This isn't standard in all transformer implementations, but gives the
@@ -115,7 +126,7 @@ public class TinyJarvisModel
 
         // Note: production transformers typically apply a final RmsNorm here
         // before the output projection. We omit it for simplicity.
-        return Helpers.Linear(probabilities, OutputProjection);
+        return Helpers.Linear(probabilities, _outputHead);
     }
 
     // Attention wrapped with pre-norm and a residual connection.
@@ -131,9 +142,9 @@ public class TinyJarvisModel
         hiddenState = Helpers.RmsNorm(hiddenState);
 
         // Compute Query, Key, Value projections
-        var queryProjection = Helpers.Linear(hiddenState, _stateDict[$"layer{layerIndex}.attn_wq"]);
-        var keyProjection = Helpers.Linear(hiddenState, _stateDict[$"layer{layerIndex}.attn_wk"]);
-        var valueProjection = Helpers.Linear(hiddenState, _stateDict[$"layer{layerIndex}.attn_wv"]);
+        var queryProjection = Helpers.Linear(hiddenState, _layers[layerIndex].Query);
+        var keyProjection = Helpers.Linear(hiddenState, _layers[layerIndex].Key);
+        var valueProjection = Helpers.Linear(hiddenState, _layers[layerIndex].Value);
 
         // Store current Key and Value in caches (for autoregressive generation)
         keysCache[layerIndex].Add(keyProjection);
@@ -143,18 +154,19 @@ public class TinyJarvisModel
         var concatenatedHeadOutputs = new List<Value>();
         for (var headIndex = 0; headIndex < _headCount; headIndex++)
         {
-            int headStartIndex = headIndex * _headDimension;
+            var headStartIndex = headIndex * _headDimension;
             var queryForHead = queryProjection.GetRange(headStartIndex, _headDimension);
 
             // Compute scaled dot‑product attention scores against all past keys
             var attentionLogits = new List<Value>();
-            int cachedPositionsCount = keysCache[layerIndex].Count;
+            var cachedPositionsCount = keysCache[layerIndex].Count;
             for (var pastPosition = 0; pastPosition < cachedPositionsCount; pastPosition++)
             {
                 var keyForHead = keysCache[layerIndex][pastPosition].GetRange(headStartIndex, _headDimension);
                 var dotProduct = new Value(0);
                 for (var dimension = 0; dimension < _headDimension; dimension++)
                     dotProduct += queryForHead[dimension] * keyForHead[dimension];
+
                 attentionLogits.Add(dotProduct / Math.Sqrt(_headDimension));
             }
 
@@ -178,7 +190,7 @@ public class TinyJarvisModel
         }
 
         // Final linear projection and residual connection
-        var attentionOutput = Helpers.Linear(concatenatedHeadOutputs, _stateDict[$"layer{layerIndex}.attn_wo"]);
+        var attentionOutput = Helpers.Linear(concatenatedHeadOutputs, _layers[layerIndex].Output);
         for (var dimensionIndex = 0; dimensionIndex < _embeddingSize; dimensionIndex++)
             attentionOutput[dimensionIndex] += residualConnection[dimensionIndex];
 
@@ -191,11 +203,11 @@ public class TinyJarvisModel
         var xResidual = new List<Value>(probabilities);
 
         probabilities = Helpers.RmsNorm(probabilities);
-        probabilities = Helpers.Linear(probabilities, _stateDict[$"layer{layerIndex}.mlp_fc1"]);
+        probabilities = Helpers.Linear(probabilities, _layers[layerIndex].FeedForwardOne);
 
         probabilities = probabilities.Select(xi => xi.Relu()).ToList();
 
-        probabilities = Helpers.Linear(probabilities, _stateDict[$"layer{layerIndex}.mlp_fc2"]);
+        probabilities = Helpers.Linear(probabilities, _layers[layerIndex].FeedForwardTwo);
         
         for (var embeddingIndex = 0; embeddingIndex < _embeddingSize; embeddingIndex++)
             probabilities[embeddingIndex] += xResidual[embeddingIndex];
@@ -224,9 +236,9 @@ public class TinyJarvisModel
     {
         // Copy the prompt to a mutable list and optionally prepend BOS
         var allTokens = new List<int>(tokens);
-        if (prependBos && (allTokens.Count == 0 || allTokens[0] != _bosToken))
+        if (prependBos && (allTokens.Count == 0 || allTokens[0] != _tokenizer.BOS))
         {
-            allTokens.Insert(0, _bosToken);
+            allTokens.Insert(0, _tokenizer.BOS);
         }
 
         // Reserve at least one slot for generation, but don't go over MaxSequenceLength
@@ -261,7 +273,7 @@ public class TinyJarvisModel
             generated.Add(nextToken);
             allTokens.Add(nextToken);
 
-            if (nextToken == _endOfSequenceToken)
+            if (nextToken == _tokenizer.EOS)
                 break;
 
             // -1 because we need to leave room? Actually we can use up to MaxSequenceLength-1 for feeding the token itself.

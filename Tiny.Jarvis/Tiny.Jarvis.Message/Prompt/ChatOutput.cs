@@ -29,8 +29,6 @@ namespace Tiny.Jarvis.Message.Prompt
             }
 
             Console.Write(Environment.NewLine);
-
-            //Console.WriteLine(message.ToString());
         }
 
         public static bool ShouldEnd(List<ChatMessage> history, string? userPromptName = null)

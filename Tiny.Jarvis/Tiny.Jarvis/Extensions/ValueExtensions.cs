@@ -1,4 +1,4 @@
-﻿using Tiny.Jarvis.Models;
+﻿using Tiny.Jarvis.Training.Models;
 
 namespace Tiny.Jarvis.Extensions
 {

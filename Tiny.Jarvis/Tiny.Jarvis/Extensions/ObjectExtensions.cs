@@ -7,13 +7,11 @@
             if (source.Length == 0)
                 throw new ArgumentException("Source array is empty.", nameof(source));
 
-            var result = new List<TResult>();
+            var modifiedResults = new List<TResult>();
             for (var i = 0; i < source.Length; i++)
-            {
-                result.Add(selector(source[i]));
-            }
+                modifiedResults.Add(selector(source[i]));
 
-            return result;
+            return modifiedResults;
         }
 
         public static List<TSource> GetRow<TSource>(this TSource[][] source, int row)
@@ -22,8 +20,8 @@
                 return [];
 
             var result = new List<TSource>();
-            for (var j = 0; j < source[row].Length; j++)
-                result.Add(source[row][j]);
+            for (var dimension = 0; dimension < source[row].Length; dimension++) // dimension = column
+                result.Add(source[row][dimension]);
 
             return result;
         }

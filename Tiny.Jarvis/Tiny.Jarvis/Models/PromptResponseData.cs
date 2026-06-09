@@ -25,7 +25,6 @@ namespace Tiny.Jarvis.Training.Models
         //[JsonPropertyName("verbosity")]
         //public int Verbosity { get; set; }
 
-        public override string ToString() => $"{Prompt} {Environment.NewLine} {Response}";
-        public (string userPromptName, string botResponsePromptName) GetPromptNames => ("Prompt", "Response");
+        public override string ToString() => $"user: {Prompt}, resposne: {Response}";
     }
 }

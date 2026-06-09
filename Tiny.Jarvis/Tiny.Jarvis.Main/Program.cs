@@ -17,7 +17,7 @@ void BeginChat()
     var tokenizerStrategy = TokenizerStrategy.Chars;
 
      // set this based on the average length of your documents (in tokens) - it controls the context window size for the model, so longer is generally better for performance but increases training time and memory usage
-    var maxSequenceLength = 64;
+    var maxSequenceLength = 32;
 
     // TODO: it might be worth trying different values for different tokenizers to see if some converge faster than others (e.g. character-level tokenizers will likely require more steps than word-level ones)
     var maxNumberOfSteps = 10000; // increase this for better performance - the optimal number depends on the size of your dataset and the complexity of the task
@@ -33,9 +33,8 @@ void BeginChat()
         Console.WriteLine(filePath);
 
     Console.WriteLine(Environment.NewLine);
-    var docsAndPromptNames = GetDocs(filePaths, random);
-    var docs = docsAndPromptNames.Item1;
-    var promptNames = docsAndPromptNames.Item2;
+    var docs = GetDocs(filePaths, random);
+
 
     // Train (or load) the model
     var (_model, _tokenizer) = TinyJarvisModelTrainer.Train(docs, tokenizerStrategy, maxSequenceLength, maxNumberOfSteps);
@@ -43,17 +42,16 @@ void BeginChat()
     // Now use the same model for chat
     Console.WriteLine("Training complete. Starting chat...");
     Console.WriteLine(Environment.NewLine);
-    var chat = new ChatSession(_model, _tokenizer, promptNames);
+    var chat = new ChatSession(_model, _tokenizer);
 
     chat.Run();
 }
 
-(List<string>, (string promptName, string responsePromptName)?) GetDocs(List<string> filePaths, Random random)
+List<string> GetDocs(List<string> filePaths, Random random)
 {
     var filePathToFormat = filePaths.ToDictionary(path => path, path => Document.GetFormat(path));
     var docs = new List<string>();
     string[] acceptableJsonFormats = ["json", "jsonl"];
-    (string, string)? container = null;
 
     foreach (var kvp in filePathToFormat)
         if (acceptableJsonFormats.Contains(kvp.Value)) {
@@ -64,7 +62,6 @@ void BeginChat()
             if (kvp.Key.Contains("bitext-travel-llm-chatbot-training-dataset.jsonl")) 
             {
                 var documents = Document.LoadFromJson<BaggageQueryIntentData>(kvp.Key, random);
-                container = documents.First().GetPromptNames;
 
                 docs.AddRange(documents.Select(x => x.ToString()));
             }
@@ -75,17 +72,13 @@ void BeginChat()
             if (kvp.Key.Contains("helpsteer-training"))
             {
                 var documents = Document.LoadFromJson<PromptResponseData>(kvp.Key, random);
-                container = documents.First().GetPromptNames;
 
                 docs.AddRange(documents.Select(doc => doc.ToString()));
             }
-
-            if (kvp.Key.Contains("puffin-gpt-conversation-training"))
-                docs.AddRange(Document.LoadFromJson<GPTConversationData>(kvp.Key, random).Select(doc => doc.ToString()));
         }
         else docs.AddRange(Document.LoadFromFile(kvp.Key, random));
 
-    return (docs, container);
+    return docs;
 }
 
 /// <summary>
