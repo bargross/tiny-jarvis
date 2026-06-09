@@ -44,15 +44,15 @@ namespace Tiny.Jarvis.Message.Prompt
                 // Get encoded sequence with Bos at the beginning
                 var tokens = tokenizer.Encode(prompt);
 
-                Console.WriteLine($"BOS token: {tokenizer.BOS}");
-                Console.WriteLine($"tokens before Generate is called: {string.Join(",", tokens)}");
+                //Console.WriteLine($"BOS token: {tokenizer.BOS}"); // debug
+                //Console.WriteLine($"tokens before Generate is called: {string.Join(",", tokens)}"); // debug
 
                 var responseTokens = model.Generate(tokens, maxNewTokens: 100, temperature: 0.8, topK: 50, topP: 0.95);
 
-                Console.WriteLine($"Generated response tokens: {string.Join(",", responseTokens)}");
+                //Console.WriteLine($"Generated response tokens: {string.Join(",", responseTokens)}"); // debug
                 var response = tokenizer.Decode(responseTokens);
 
-                Console.WriteLine($"Generated response: {response}");
+                //Console.WriteLine($"Generated response: {response}"); // debug
                 // Clean and display
                 response = CleanResponse(response);
                 
