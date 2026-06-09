@@ -81,9 +81,6 @@ List<string> GetDocs(List<string> filePaths, Random random)
     return docs;
 }
 
-/// <summary>
-/// Finds the solution root directory (where .sln file or .git folder exists).
-/// </summary>
 string FindSolutionRoot()
 {
     var directory = new DirectoryInfo(AppDomain.CurrentDomain.BaseDirectory);
