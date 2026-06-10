@@ -14,7 +14,7 @@ namespace Tiny.Jarvis.Message.Prompt
                 return GetUserInput(promptName);
             }
 
-            return new ChatMessage { From = promptName ?? "User", Content = userResponse, CreatedAt = DateTime.UtcNow };
+            return new ChatMessage { From = promptName ?? "user", Content = userResponse, CreatedAt = DateTime.UtcNow };
         }
     }
 }

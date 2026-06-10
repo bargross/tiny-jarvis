@@ -1,13 +1,13 @@
-﻿using Tiny.Jarvis.Message.Enums;
+﻿using Tiny.Jarvis.Message.Models;
 using ChatMessage = Tiny.Jarvis.Message.Models.Message;
 
 namespace Tiny.Jarvis.Message.Prompt
 {
     public class ChatOutput
     {
-        private static int _outputDelay = 250;
+        //private static int _outputDelay = 250;
 
-        public static void Reply(string response, List<ChatMessage> history, string? promptName = null)
+        public static void Reply(string response, List<ConversationExchange> history, string? promptName = null)
         {
             var message = new ChatMessage
             {
@@ -16,37 +16,37 @@ namespace Tiny.Jarvis.Message.Prompt
                 CreatedAt = DateTime.UtcNow
             };
 
-            history.Add(message);
+            var conversation = history.Last();
+
+            conversation.AssistantResposne = message;
 
             var responseParts = response.Split(' ');
 
-            Console.Write($"{message.From}: ");
-            foreach (var responsePart in responseParts)
-            {
-                Console.Write($" {responsePart}");
-
-                Thread.Sleep(_outputDelay);
-            }
+            Console.Write($"Cleaned Resposne: {message.From}: {message.Content}");
 
             Console.Write(Environment.NewLine);
         }
 
-        public static bool ShouldEnd(List<ChatMessage> history, string? userPromptName = null)
+        public static bool ShouldEnd(List<ConversationExchange> history, string? userPromptName = null)
         {
-            var endMessage = new ChatMessage
+            var assistantResponse = new ChatMessage
             {
-                From = userPromptName ?? "user",
+                From = "assistant",
                 Content = "End chant? (y/n)",
                 CreatedAt = DateTime.UtcNow
             };
 
             Console.WriteLine("End chant? (y/n)");
-            
-            var userInput = ChatInput.GetUserInput();
 
-            history.Add(endMessage);
+            var exchange = new ConversationExchange 
+            { 
+                UserPrompt = ChatInput.GetUserInput(), 
+                AssistantResposne = assistantResponse 
+            };
 
-            var inputResponse = userInput.Content.Trim().ToLower();
+            history.Add(exchange);
+
+            var inputResponse = exchange.UserPrompt.Content.Trim().ToLower();
             if (inputResponse == "y")
             {
                 Console.WriteLine("Chat ended.");

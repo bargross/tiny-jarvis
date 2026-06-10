@@ -5,9 +5,9 @@ public class CharacterTokenizer : ITokenizer
     private readonly Dictionary<int, string> _tokenToIdentifier; // ID -> character string
     private readonly Dictionary<string, int> _identifierToToken; // character string -> ID
     private readonly int _unknownTokenIdentifier;
-    private const string _unknownToken = "[UNK]";
-    private const string _bosToken = "[BOS]";
-    private const string _eosToken = "[EOS]";
+    private const string _unknownToken = "[UNK]"; // not single token but works for now
+    private const string _bosToken = "[BOS]";  // not single token but works for now
+    private const string _eosToken = "[EOS]";  // not single token but works for now
 
     public int BOS { get; private set; }
     public int EOS { get; private set; }
@@ -49,7 +49,7 @@ public class CharacterTokenizer : ITokenizer
         foreach (char c in text)
         {
             var charStr = c.ToString();
-            if (_identifierToToken.TryGetValue(charStr, out int id))
+            if (_identifierToToken.TryGetValue(charStr, out var id))
                 ids.Add(id);
             
             else ids.Add(_unknownTokenIdentifier);
@@ -62,7 +62,7 @@ public class CharacterTokenizer : ITokenizer
     public string Decode(IReadOnlyList<int> identifiers)
     {
         var chars = new List<char>();
-        foreach (int id in identifiers)
+        foreach (var id in identifiers)
         {
             var token = _tokenToIdentifier.GetValueOrDefault(id, _unknownToken);
 
@@ -76,6 +76,7 @@ public class CharacterTokenizer : ITokenizer
             // fallback (should not happen for normal characters)
             else chars.Add('?');
         }
+
         return new string(chars.ToArray());
     }
 }

@@ -1,12 +1,12 @@
-﻿using Tiny.Jarvis.MLModels;
+﻿using Tiny.Jarvis.Message.Models;
+using Tiny.Jarvis.MLModels;
 using Tiny.Jarvis.Tokenization;
-using ChatMessage = Tiny.Jarvis.Message.Models.Message;
 
 namespace Tiny.Jarvis.Message.Prompt
 {
     public class ChatSession(TinyJarvisModel model, ITokenizer tokenizer)
     {
-        private readonly List<ChatMessage> _history = new();
+        private readonly List<ConversationExchange> _history = new();
 
         private bool _running = true;  // optional if you want external control
 
@@ -17,38 +17,42 @@ namespace Tiny.Jarvis.Message.Prompt
             while (_running)
             {
                 Console.Write("You: ");
-                var inputMessage = ChatInput.GetUserInput("user");
+                var conversationExchange = new ConversationExchange
+                {
+                    UserPrompt = ChatInput.GetUserInput("user"),
+                };
 
                 // Termination check
-                if (string.IsNullOrEmpty(inputMessage.Content) ||
-                    inputMessage.Content.Equals("/end", StringComparison.OrdinalIgnoreCase) ||
-                    inputMessage.Content.Equals("/exit", StringComparison.OrdinalIgnoreCase))
+                if (string.IsNullOrEmpty(conversationExchange.UserPrompt.Content) ||
+                    conversationExchange.UserPrompt.Content.Equals("/end", StringComparison.OrdinalIgnoreCase) ||
+                    conversationExchange.UserPrompt.Content.Equals("/exit", StringComparison.OrdinalIgnoreCase))
                 {
-                    _running = ChatOutput.ShouldEnd(_history);
+                    _running = !ChatOutput.ShouldEnd(_history);
+
+                    if (!_running) continue;  
                 }
 
-                _history.Add(inputMessage);
+                _history.Add(conversationExchange);
 
-                Console.WriteLine($"User Requests: {inputMessage.Content}");
-                Console.WriteLine($"Prompt: {inputMessage.ToString()}");
+                Console.WriteLine($"Prompt: {conversationExchange.ToString()}");
                 Console.WriteLine(Environment.NewLine);
 
                 // Build prompt with history
                 var botPromptName = "assistant";
-                var prompt = string.Join(Environment.NewLine, _history.Select(x => x.ToString())) + $" {botPromptName}: ";
+                var prompt = string.Join(Environment.NewLine, _history.Select(x => x.ToString())) + $" {botPromptName}:";
 
                 // Get encoded sequence with Bos at the beginning
                 var tokens = tokenizer.Encode(prompt);
 
-                Console.WriteLine($"BOS token: {tokenizer.BOS}");
-                Console.WriteLine($"tokens before Generate is called: {string.Join(",", tokens)}");
+                //Console.WriteLine($"BOS token: {tokenizer.BOS}"); // debug
+                //Console.WriteLine($"tokens before Generate is called: {string.Join(",", tokens)}"); // debug
 
                 var responseTokens = model.Generate(tokens, maxNewTokens: 100, temperature: 0.8, topK: 50, topP: 0.95);
 
-                Console.WriteLine($"Generated response tokens: {string.Join(",", responseTokens)}");
+                //Console.WriteLine($"Generated response tokens: {string.Join(",", responseTokens)}"); // debug
                 var response = tokenizer.Decode(responseTokens);
 
-                Console.WriteLine($"Generated response: {response}");
+                //Console.WriteLine($"Generated response: {response}"); // debug
                 // Clean and display
                 response = CleanResponse(response);
                 
