@@ -35,10 +35,11 @@ public class TinyJarvisModel
     {
         get
         {
+            // updates parameters -> might be best to move this to the constructor
             if (_allParameters == null)
             {
-                _allParameters = _tokenEmbeddings?.SelectMany(row => row).ToList();
-                _allParameters.AddRange(_positionEmbeddings.SelectMany(row => row));
+                _allParameters = _tokenEmbeddings?.SelectMany(row => row)?.ToList();
+                _allParameters?.AddRange(_positionEmbeddings.SelectMany(row => row));
 
                 foreach (var layer in _layers)
                 {
@@ -52,6 +53,7 @@ public class TinyJarvisModel
 
                 _allParameters.AddRange(_outputHead.SelectMany(row => row));
             }
+
             return _allParameters;
         }
     }
@@ -63,8 +65,7 @@ public class TinyJarvisModel
         int maxSequenceLength,
         Random random,
         ITokenizer tokenizer
-    )
-    {
+    ) {
         _embeddingSize = embeddingSize;
         _headCount = headCount;
         _layerCount = layerCount;
@@ -105,7 +106,6 @@ public class TinyJarvisModel
         if (posId < 0 || posId >= _positionEmbeddings.Length)
             throw new ArgumentOutOfRangeException(nameof(posId), $"posId {posId} is out of bounds for position embedding size {_positionEmbeddings.Length}");
 
-        // use ids directly (remove the -1 adjustment)
         var tokenEmbedding = _tokenEmbeddings.GetRow(tokenId);
         var positionEmbedding = _positionEmbeddings.GetRow(posId);
 

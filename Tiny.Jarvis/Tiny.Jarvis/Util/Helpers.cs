@@ -1,20 +1,32 @@
 using Tiny.Jarvis.Extensions;
+using Tiny.Jarvis.Training.Kernel;
 using Tiny.Jarvis.Training.Models;
 
 namespace Tiny.Jarvis.Util;
 
 public static class Helpers
 {
+
+    public static bool UseGpu = false;  // set true to fallback to GPU, false for now as CPU training with current architecture i.e.: Value object, is more efficient.
+
     /// <summary>
     /// Matrix-vector multiply. Each row of weights is multiplied element‑wise with input and summed.
     /// </summary>
     public static List<Value> Linear(List<Value> input, Value[][] weights) =>
         [.. weights.SelectRow(row => Dot(row, input))];
 
+    public static List<Value> Softmax(List<Value> logits)
+    {
+        if (UseGpu && GpuSoftmax.IsInitialized)
+            return GpuSoftmax.Softmax(logits);
+        
+        else return SoftmaxCpu(logits);
+    }
+
     /// <summary>
     /// Converts raw logits into a probability distribution using softmax.
     /// </summary>
-    public static List<Value> Softmax(List<Value> logits)
+    public static List<Value> SoftmaxCpu(List<Value> logits)
     {
         if (logits == null || logits.Count == 0)
             return new List<Value>();
