@@ -36,7 +36,7 @@ namespace Tiny.Jarvis.Util
             return lines.Where(l => !string.IsNullOrEmpty(l)).ToList();
         }
 
-        public static List<TValue> LoadFromJson<TValue>(string path, Random random)
+        public static List<TValue> LoadFromJson<TValue>(string path)
         {
             var fileFormat = GetFormat(path);
             if (!IsValidFormat(fileFormat))
