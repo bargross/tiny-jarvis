@@ -1,10 +1,11 @@
-﻿using Tiny.Jarvis.Message.Models;
+﻿using Tiny.Jarvis.Genetic;
+using Tiny.Jarvis.Message.Models;
 using Tiny.Jarvis.MLModels;
 using Tiny.Jarvis.Tokenization;
 
 namespace Tiny.Jarvis.Message.Prompt
 {
-    public class ChatSession(TinyJarvisModel model, ITokenizer tokenizer)
+    public class ChatSession(TinyJarvisModel model, ITokenizer tokenizer, TinyJarvisInteractiveGeneticAlgorithm geneticAlgorithm)
     {
         private readonly List<ConversationExchange> _history = new();
 
@@ -39,7 +40,7 @@ namespace Tiny.Jarvis.Message.Prompt
 
                 // Build prompt with history
                 var botPromptName = "assistant";
-                var prompt = string.Join(Environment.NewLine, _history.Select(x => x.ToString())) + $" {botPromptName}:";
+                var prompt = string.Join(Environment.NewLine, _history.Select(x => x.ToString()));
 
                 // Get encoded sequence with Bos at the beginning
                 var tokens = tokenizer.Encode(prompt);
@@ -47,7 +48,15 @@ namespace Tiny.Jarvis.Message.Prompt
                 //Console.WriteLine($"BOS token: {tokenizer.BOS}"); // debug
                 //Console.WriteLine($"tokens before Generate is called: {string.Join(",", tokens)}"); // debug
 
-                var responseTokens = model.Generate(tokens, maxNewTokens: 100, temperature: 0.8, topK: 50, topP: 0.95);
+                // start the GA and run
+                var bestChromosome = geneticAlgorithm.Run();
+
+                // Decode the best parameters
+                var bestTopK = bestChromosome[0];
+                var bestTemperature = bestChromosome[1] / 100.0;
+                var bestTopP = bestChromosome[2] / 100.0;
+
+                var responseTokens = model.Generate(tokens, maxNewTokens: 100, temperature: bestTemperature, topK: bestTopK, topP: bestTopP);
 
                 //Console.WriteLine($"Generated response tokens: {string.Join(",", responseTokens)}"); // debug
                 var response = tokenizer.Decode(responseTokens);

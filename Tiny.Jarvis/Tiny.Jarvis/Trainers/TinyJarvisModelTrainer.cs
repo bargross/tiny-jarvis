@@ -18,7 +18,7 @@ public static class TinyJarvisModelTrainer
 
         // ── Hyperparameters ──────────────────────────────────────
 
-        var embeddingSize = 32;
+        var embeddingSize = 36;
         var layerCount = 4; // just one transformer block for speed - try layerCount=2 to see improvement
         var headCount = 4;
         var learningRate = 0.001;
@@ -163,9 +163,10 @@ public static class TinyJarvisModelTrainer
 
         watch.Stop();
 
-        var secondsDiff = watch.ElapsedMilliseconds / 1000;
-        var minutesDiff = secondsDiff / 60;
-        var hoursDiff = minutesDiff / 60;
+        var timespan = TimeSpan.FromMilliseconds(watch.ElapsedMilliseconds);
+        var secondsDiff = timespan.Seconds;
+        var minutesDiff = timespan.Minutes;
+        var hoursDiff = timespan.Hours;
 
         Console.WriteLine($"Start time: {startTime}");
         Console.WriteLine($"End time: {DateTime.UtcNow}");

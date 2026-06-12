@@ -6,9 +6,4 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
-  <ItemGroup>
-    <ProjectReference Include="..\Tiny.Jarvis.Genetic\Tiny.Jarvis.Genetic.csproj" />
-    <ProjectReference Include="..\Tiny.Jarvis\Tiny.Jarvis.Training.csproj" />
-  </ItemGroup>
-
 </Project>
