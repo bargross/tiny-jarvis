@@ -8,6 +8,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\Tiny.Jarvis.Genetic\Tiny.Jarvis.Genetic.csproj" />
     <ProjectReference Include="..\Tiny.Jarvis.Message\Tiny.Jarvis.Message.csproj" />
     <ProjectReference Include="..\Tiny.Jarvis\Tiny.Jarvis.Training.csproj" />
   </ItemGroup>

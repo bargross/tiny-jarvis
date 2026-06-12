@@ -7,6 +7,7 @@
     <File Path="Assets/passenger-register-titanic-dataset.json" />
     <File Path="tiny-shakesphere.txt" />
   </Folder>
+  <Project Path="Tiny.Jarvis.Genetic/Tiny.Jarvis.Genetic.csproj" Id="39a894b5-d015-4824-925e-b12dd351c9cf" />
   <Project Path="Tiny.Jarvis.Main/Tiny.Jarvis.Main.csproj" Id="c4d79b83-c433-47de-b432-8e54964e6a0a" />
   <Project Path="Tiny.Jarvis.Message/Tiny.Jarvis.Message.csproj" Id="dd4cbe3b-342a-4313-bc35-f645022c4144" />
   <Project Path="Tiny.Jarvis/Tiny.Jarvis.Training.csproj" />
