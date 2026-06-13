@@ -1,40 +1,41 @@
 using Tiny.Jarvis.Training.Models;
 
-namespace Tiny.Jarvis.Optimization;
+namespace Tiny.Jarvis.Training.Optimization;
 
-internal class AdamOptimiser
+internal class AdamOptimiser: IOptimizer
 {
+    // make the below optional with these as defaults
     private const double MomentumSmoothing = 0.85;
     private const double SquaredGradSmoothing = 0.99;
     private const double Epsilon = 1e-8;
 
-    private readonly IReadOnlyList<Value> _parameters;
+    private readonly List<Value> _parameters;
     private readonly double[] _momentum;
     private readonly double[] _squaredGradAvg;
     private readonly double _baseLearningRate;
     private readonly int _totalSteps;
 
-    public AdamOptimiser(IReadOnlyList<Value> parameters, double learningRate, int totalSteps)
+    public AdamOptimiser(IEnumerable<Value> parameters, double learningRate, int totalSteps)
     {
-        _parameters = parameters;
-        _momentum = new double[parameters.Count];
-        _squaredGradAvg = new double[parameters.Count];
+        var paramCount = parameters.Count();
+
+        _parameters = [..parameters];
+        _momentum = new double[paramCount];
+        _squaredGradAvg = new double[paramCount];
         _baseLearningRate = learningRate;
         _totalSteps = totalSteps;
     }
 
     // Reset every parameter's gradient to zero. Call before each Backward.
-    public void ZeroGrad()
-    {
-        foreach (Value value in _parameters)
-        {
-            value.Grad = 0;
-        }
-    }
+    public void ZeroGrad() => _parameters.ForEach(param => param.Grad = 0.0);
 
     // Apply one Adam update to every parameter using its current Grad.
-    public void Step(int step)
+    public void Step(int? computedStep = null)
     {
+        if (computedStep is null) throw new ArgumentException("Missing step");
+
+        var step = computedStep.Value;
+
         // Compute the total L2 norm of all gradients
         var gradNormSq = 0.0;
         foreach (var param in _parameters)

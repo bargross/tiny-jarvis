@@ -61,6 +61,7 @@ namespace Tiny.Jarvis.Tokenization
         public string Decode(IReadOnlyList<int> identifiers)
         {
             var tokens = identifiers
+                .Where(token => token != EOS) // exclude the EOS token if the model generates it
                 .Select(id => _tokenToIdentifier.GetValueOrDefault(id, _unknownToken))
                 .ToList();
 

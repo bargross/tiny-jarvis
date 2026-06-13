@@ -1,17 +1,18 @@
 using Tiny.Jarvis.Enums;
 using Tiny.Jarvis.Extensions;
 using Tiny.Jarvis.MLModels;
-using Tiny.Jarvis.Training.Models;
-using Tiny.Jarvis.Optimization;
 using Tiny.Jarvis.Tokenization;
+using Tiny.Jarvis.Training.Enums;
+using Tiny.Jarvis.Training.Generators;
+using Tiny.Jarvis.Training.Models;
 using Tiny.Jarvis.Training.Orchestrators;
-using Tiny.Jarvis.Util;
+using Tiny.Jarvis.Training.Util;
 
 namespace Tiny.Jarvis.Training.Trainers;
 
 public static class TinyJarvisModelTrainer
 {
-    public static (TinyJarvisModel, ITokenizer) Train(IEnumerable<string> docs, TokenizerStrategy strategy, int maxSequenceLength = 32, int totalNumberOfSteps = 10000, int? vocabularySize = 50, int numOfMerges = 15)
+    public static (TinyJarvisModel, ITokenizer) Train(IEnumerable<string> docs, TokenizerStrategy strategy, OptimizerStrategy optimizerStrategy, int maxSequenceLength = 32, int totalNumberOfSteps = 10000, int? vocabularySize = 50, int numOfMerges = 15)
     {
         // metrics
         var watch = System.Diagnostics.Stopwatch.StartNew();
@@ -56,9 +57,14 @@ public static class TinyJarvisModelTrainer
         Console.WriteLine($"num params: {model.Parameters.Count}");
         Console.WriteLine(Environment.NewLine);
 
+        // ── Optimizer ────────────────────────────────────────
+
+        var momentum = 0.9;
+        var weightDecay = 0.0;
+        var optimiser = OptimizerGenerator.GetOptimizer(optimizerStrategy, model.Parameters, learningRate, totalNumberOfSteps, momentum, weightDecay);
+        
         // ── Training Loop ────────────────────────────────────────
 
-        var optimiser = new AdamOptimiser(model.Parameters, learningRate, totalNumberOfSteps);
 
         // Running average to smooth out the noisy per-step loss.
         var avgLoss = 0.0;
@@ -98,7 +104,7 @@ public static class TinyJarvisModelTrainer
                 var logits = model.Forward(currentToken, posId, keys, values);
 
                 // loss is now calculated by CrossEntropyLoss instead of manually calculating via Softmax
-                loss += Helpers.CrossEntropyLoss(logits, nextToken);
+                loss += Calculate.CrossEntropyLoss(logits, nextToken);
             }
 
             loss *= 1.0 / tokenCount;

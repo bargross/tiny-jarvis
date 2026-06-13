@@ -3,6 +3,7 @@ using Tiny.Jarvis.Genetic;
 using Tiny.Jarvis.Genetic.Crossover;
 using Tiny.Jarvis.Genetic.Models;
 using Tiny.Jarvis.Message.Prompt;
+using Tiny.Jarvis.Training.Enums;
 using Tiny.Jarvis.Training.Models;
 using Tiny.Jarvis.Training.Trainers;
 using Tiny.Jarvis.Util;
@@ -18,6 +19,7 @@ void BeginChat()
 {
     var random = new Random(42);
     var tokenizerStrategy = TokenizerStrategy.WordPiece;
+    var optimizerStrategy = OptimizerStrategy.Adam;
 
      // set this based on the average length of your documents (in tokens) - it controls the context window size for the model, so longer is generally better for performance but increases training time and memory usage
     var maxSequenceLength = 34;
@@ -44,7 +46,7 @@ void BeginChat()
 
 
     // Train (or load) the model
-    var (_model, _tokenizer) = TinyJarvisModelTrainer.Train(docs, tokenizerStrategy, maxSequenceLength, maxNumberOfSteps, vocabularySize);
+    var (_model, _tokenizer) = TinyJarvisModelTrainer.Train(docs, tokenizerStrategy, optimizerStrategy, maxSequenceLength, maxNumberOfSteps, vocabularySize);
 
     // Now use the same model for chat
     Console.WriteLine("Training complete. Starting chat...");

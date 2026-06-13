@@ -1,7 +1,7 @@
 using Tiny.Jarvis.Extensions;
-using Tiny.Jarvis.Util;
-using Tiny.Jarvis.Training.Models;
 using Tiny.Jarvis.Tokenization;
+using Tiny.Jarvis.Training.Models;
+using Tiny.Jarvis.Training.Util;
 
 namespace Tiny.Jarvis.MLModels;
 
@@ -116,7 +116,7 @@ public class TinyJarvisModel
         // Initial RmsNorm: stabilises the embeddings before entering the first block.
         // This isn't standard in all transformer implementations, but gives the
         // residual stream a stable starting magnitude.
-        probabilities = Helpers.RmsNorm(probabilities);
+        probabilities = Calculate.RmsNorm(probabilities);
 
         for (var layerIndex = 0; layerIndex < _layerCount; layerIndex++)
         {
@@ -126,7 +126,7 @@ public class TinyJarvisModel
 
         // Note: production transformers typically apply a final RmsNorm here
         // before the output projection. We omit it for simplicity.
-        return Helpers.Linear(probabilities, _outputHead);
+        return Calculate.Linear(probabilities, _outputHead);
     }
 
     // Attention wrapped with pre-norm and a residual connection.
@@ -139,12 +139,12 @@ public class TinyJarvisModel
     {
         // Save input for residual connection later
         var residualConnection = new List<Value>(hiddenState);
-        hiddenState = Helpers.RmsNorm(hiddenState);
+        hiddenState = Calculate.RmsNorm(hiddenState);
 
         // Compute Query, Key, Value projections
-        var queryProjection = Helpers.Linear(hiddenState, _layers[layerIndex].Query);
-        var keyProjection = Helpers.Linear(hiddenState, _layers[layerIndex].Key);
-        var valueProjection = Helpers.Linear(hiddenState, _layers[layerIndex].Value);
+        var queryProjection = Calculate.Linear(hiddenState, _layers[layerIndex].Query);
+        var keyProjection = Calculate.Linear(hiddenState, _layers[layerIndex].Key);
+        var valueProjection = Calculate.Linear(hiddenState, _layers[layerIndex].Value);
 
         // Store current Key and Value in caches (for autoregressive generation)
         keysCache[layerIndex].Add(keyProjection);
@@ -171,7 +171,7 @@ public class TinyJarvisModel
             }
 
             // Convert logits to probabilities
-            var attentionWeights = Helpers.Softmax(attentionLogits);
+            var attentionWeights = Calculate.Softmax(attentionLogits);
 
             // Weighted sum of values (this head's output)
             var headOutputValues = new List<Value>();
@@ -190,7 +190,7 @@ public class TinyJarvisModel
         }
 
         // Final linear projection and residual connection
-        var attentionOutput = Helpers.Linear(concatenatedHeadOutputs, _layers[layerIndex].Output);
+        var attentionOutput = Calculate.Linear(concatenatedHeadOutputs, _layers[layerIndex].Output);
         for (var dimensionIndex = 0; dimensionIndex < _embeddingSize; dimensionIndex++)
             attentionOutput[dimensionIndex] += residualConnection[dimensionIndex];
 
@@ -202,16 +202,15 @@ public class TinyJarvisModel
     {
         var xResidual = new List<Value>(probabilities);
 
-        probabilities = Helpers.RmsNorm(probabilities);
-        probabilities = Helpers.Linear(probabilities, _layers[layerIndex].FeedForwardOne);
+        probabilities = Calculate.RmsNorm(probabilities);
+        probabilities = Calculate.Linear(probabilities, _layers[layerIndex].FeedForwardOne);
 
         probabilities = probabilities.Select(xi => xi.Relu()).ToList();
 
-        probabilities = Helpers.Linear(probabilities, _layers[layerIndex].FeedForwardTwo);
+        probabilities = Calculate.Linear(probabilities, _layers[layerIndex].FeedForwardTwo);
         
         for (var embeddingIndex = 0; embeddingIndex < _embeddingSize; embeddingIndex++)
             probabilities[embeddingIndex] += xResidual[embeddingIndex];
-        
 
         return probabilities;
     }
@@ -227,12 +226,12 @@ public class TinyJarvisModel
     /// <param name="endTokenId">If provided, stop generation when this token is produced.</param>
     /// <returns>List of newly generated token IDs (excluding the original prompt).</returns>
     public IReadOnlyList<int> Generate(
-    IReadOnlyList<int> tokens,
-    int maxNewTokens,
-    double temperature = 1.0,
-    int topK = 0,
-    double topP = 1.0,
-    bool prependBos = true)
+        IReadOnlyList<int> tokens,
+        int maxNewTokens,
+        double temperature = 1.0,
+        int topK = 0,
+        double topP = 1.0,
+        bool prependBos = true)
     {
         // Copy the prompt to a mutable list and optionally prepend BOS
         var allTokens = new List<int>(tokens);
