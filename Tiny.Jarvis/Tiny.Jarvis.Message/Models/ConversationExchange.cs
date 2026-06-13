@@ -5,6 +5,6 @@
         public Message? UserPrompt { get; set; }
         public Message? AssistantResposne { get; set; }
 
-        public override string ToString() => $"{UserPrompt?.ToString() ?? "user: "} {AssistantResposne?.ToString() ?? "assistant: "}";
+        public override string ToString() => $"{UserPrompt?.ToString() ?? "user:"} {AssistantResposne?.ToString() ?? "assistant:"}";
     }
 }

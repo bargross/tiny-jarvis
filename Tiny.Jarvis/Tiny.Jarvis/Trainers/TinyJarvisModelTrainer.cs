@@ -11,7 +11,7 @@ namespace Tiny.Jarvis.Training.Trainers;
 
 public static class TinyJarvisModelTrainer
 {
-    public static (TinyJarvisModel, ITokenizer) Train(IEnumerable<string> docs, TokenizerStrategy strategy, int maxSequenceLength = 32, int totalNumberOfSteps = 10000, int vocabularySize = 50)
+    public static (TinyJarvisModel, ITokenizer) Train(IEnumerable<string> docs, TokenizerStrategy strategy, int maxSequenceLength = 32, int totalNumberOfSteps = 10000, int? vocabularySize = 50, int numOfMerges = 15)
     {
         // metrics
         var watch = System.Diagnostics.Stopwatch.StartNew();
@@ -29,11 +29,11 @@ public static class TinyJarvisModelTrainer
         switch (strategy)
         {
             case TokenizerStrategy.Chars:
-                tokenizer = TokenizerGenerator.GetTokenizer(strategy, ["abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 .,|!?-'\""], vocabularySize);
+                tokenizer = TokenizerGenerator.GetTokenizer(strategy, ["abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 .,|!?-'\""]);
                 break;
 
             default:
-                tokenizer = TokenizerGenerator.GetTokenizer(strategy, docs, vocabularySize);
+                tokenizer = TokenizerGenerator.GetTokenizer(strategy, docs, vocabularySize ?? 50, numOfMerges);
                 break;
         }
 

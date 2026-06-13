@@ -13,34 +13,49 @@ namespace Tiny.Jarvis.Message.Prompt
 
         public void Run()
         {
-            Console.WriteLine("Chat started. Type '/end' or '/exit' to stop.\n");
+            Console.WriteLine("Chat started. Type 'end' or 'exit' to stop, 'chg usr-prt' to change user prompt & 'chg bot-prt' to change the bot prompt \n");
+            string userPrompt = "user";
+            string botPrompt = "assistant";
 
             while (_running)
             {
-                Console.Write("You: ");
                 var conversationExchange = new ConversationExchange
                 {
-                    UserPrompt = ChatInput.GetUserInput("user"),
+                    UserPrompt = ChatInput.GetUserInput(userPrompt),
                 };
 
                 // Termination check
-                if (string.IsNullOrEmpty(conversationExchange.UserPrompt.Content) ||
-                    conversationExchange.UserPrompt.Content.Equals("/end", StringComparison.OrdinalIgnoreCase) ||
-                    conversationExchange.UserPrompt.Content.Equals("/exit", StringComparison.OrdinalIgnoreCase))
+                var userPromptContentAsLowerCase = conversationExchange?.UserPrompt?.Content?.ToLower();
+                if (!string.IsNullOrEmpty(userPromptContentAsLowerCase))
                 {
-                    _running = !ChatOutput.ShouldEnd(_history);
+                
+                   if (userPromptContentAsLowerCase.Equals("end", StringComparison.OrdinalIgnoreCase) || userPromptContentAsLowerCase.Equals("exit", StringComparison.OrdinalIgnoreCase))
+                    {
+                        _running = !ChatOutput.ShouldEnd(_history, botPrompt);
+                    }
+
+                    if (userPromptContentAsLowerCase.Equals("chg usr-prt", StringComparison.OrdinalIgnoreCase))
+                    {
+                        userPrompt = Console.ReadLine() ?? "user"; // with default
+                    }
+
+                    if (userPromptContentAsLowerCase.Equals("chg bot-prt", StringComparison.OrdinalIgnoreCase))
+                    {
+                        botPrompt = Console.ReadLine() ?? "assistant"; // with default
+                    }
 
                     if (!_running) continue;  
                 }
 
+
                 _history.Add(conversationExchange);
 
-                Console.WriteLine($"Prompt: {conversationExchange.ToString()}");
+                Console.WriteLine(conversationExchange.ToString());
                 Console.WriteLine(Environment.NewLine);
 
                 // Build prompt with history
-                var botPromptName = "assistant";
                 var prompt = string.Join(Environment.NewLine, _history.Select(x => x.ToString()));
+                Console.WriteLine(prompt);
 
                 // Get encoded sequence with Bos at the beginning
                 var tokens = tokenizer.Encode(prompt);
@@ -49,12 +64,12 @@ namespace Tiny.Jarvis.Message.Prompt
                 //Console.WriteLine($"tokens before Generate is called: {string.Join(",", tokens)}"); // debug
 
                 // start the GA and run
-                var bestChromosome = geneticAlgorithm.Run();
+                //var bestChromosome = geneticAlgorithm.Run();
 
                 // Decode the best parameters
-                var bestTopK = bestChromosome[0];
-                var bestTemperature = bestChromosome[1] / 100.0;
-                var bestTopP = bestChromosome[2] / 100.0;
+                var bestTopK = 20;
+                var bestTemperature = 0.6;
+                var bestTopP = 0.8;
 
                 var responseTokens = model.Generate(tokens, maxNewTokens: 100, temperature: bestTemperature, topK: bestTopK, topP: bestTopP);
 
@@ -65,14 +80,14 @@ namespace Tiny.Jarvis.Message.Prompt
                 // Clean and display
                 response = CleanResponse(response);
                 
-                ChatOutput.Reply(response, _history, botPromptName);
+                ChatOutput.Reply(response, _history, botPrompt);
             }
         }
 
         private string CleanResponse(string response)
         {
             // Stop if model starts generating a new user/assistant tag
-            int idx = response.IndexOf("user:", StringComparison.OrdinalIgnoreCase);
+            var idx = response.IndexOf("user:", StringComparison.OrdinalIgnoreCase);
             if (idx >= 0) response = response.Substring(0, idx);
 
             idx = response.IndexOf("assistant:", StringComparison.OrdinalIgnoreCase);

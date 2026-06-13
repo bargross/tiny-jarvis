@@ -762,3 +762,212 @@ user: what's a 51 percent attack? assistant: mining pool controlling majority of
 user: what's a sybil attack? assistant: creating many fake identities to gain influence user: blockchains resistant? assistant: proof of work helps
 user: what's a eclipse attack? assistant: isolating a node from the network user: feeds false information? assistant: can fool that node
 user: what's a dan kaminsky? assistant: security researcher who found massive dns flaw user: fixed quickly? assistant: yes 2008
+user: what is 2+2? assistant: 4 user: what is 3+3? assistant: 6
+user: how much is 5-2? assistant: 3 user: and 10-4? assistant: 6
+user: what is 4*3? assistant: 12 user: 5*5? assistant: 25
+user: divide 10 by 2? assistant: 5 user: 20 divided by 4? assistant: 5
+user: 1+1? assistant: 2 user: 2+2? assistant: 4
+user: 7-3? assistant: 4 user: 9-5? assistant: 4
+user: 6*2? assistant: 12 user: 3*6? assistant: 18
+user: 15/3? assistant: 5 user: 12/4? assistant: 3
+user: what is 8+1? assistant: 9 user: 0+5? assistant: 5
+user: 4-1? assistant: 3 user: 8-2? assistant: 6
+user: 2*7? assistant: 14 user: 4*4? assistant: 16
+user: 18/2? assistant: 9 user: 24/6? assistant: 4
+user: 3+4? assistant: 7 user: 5+6? assistant: 11
+user: 10-3? assistant: 7 user: 12-5? assistant: 7
+user: 8*2? assistant: 16 user: 9*3? assistant: 27
+user: 30/5? assistant: 6 user: 14/7? assistant: 2
+user: 0+2? assistant: 2 user: 0+10? assistant: 10
+user: 6-0? assistant: 6 user: 9-0? assistant: 9
+user: 1*9? assistant: 9 user: 2*8? assistant: 16
+user: 24/3? assistant: 8 user: 25/5? assistant: 5
+user: 4+4? assistant: 8 user: 7+7? assistant: 14
+user: 15-7? assistant: 8 user: 20-12? assistant: 8
+user: 3*7? assistant: 21 user: 5*6? assistant: 30
+user: 36/6? assistant: 6 user: 32/8? assistant: 4
+user: what is 9+1? assistant: 10 user: 2+8? assistant: 10
+user: 14-6? assistant: 8 user: 18-9? assistant: 9
+user: 4*6? assistant: 24 user: 7*4? assistant: 28
+user: 40/8? assistant: 5 user: 45/9? assistant: 5
+user: 5+5? assistant: 10 user: 6+4? assistant: 10
+user: 11-2? assistant: 9 user: 13-4? assistant: 9
+user: 9*1? assistant: 9 user: 8*1? assistant: 8
+user: 27/3? assistant: 9 user: 21/3? assistant: 7
+user: 2+3? assistant: 5 user: 3+2? assistant: 5
+user: 12-7? assistant: 5 user: 16-11? assistant: 5
+user: 5*4? assistant: 20 user: 6*5? assistant: 30
+user: 16/2? assistant: 8 user: 28/4? assistant: 7
+user: 7+3? assistant: 10 user: 4+6? assistant: 10
+user: 19-8? assistant: 11 user: 17-6? assistant: 11
+user: 2*9? assistant: 18 user: 3*8? assistant: 24
+user: 48/6? assistant: 8 user: 56/7? assistant: 8
+user: 0+0? assistant: 0 user: 1-1? assistant: 0
+user: 4+5? assistant: 9 user: 5+4? assistant: 9
+user: 10-1? assistant: 9 user: 20-11? assistant: 9
+user: 7*0? assistant: 0 user: 8*0? assistant: 0
+user: 24/4? assistant: 6 user: 18/3? assistant: 6
+user: 1+2? assistant: 3 user: 2+1? assistant: 3
+user: 9-4? assistant: 5 user: 8-3? assistant: 5
+user: 3*5? assistant: 15 user: 4*5? assistant: 20
+user: 30/6? assistant: 5 user: 42/7? assistant: 6
+user: 6+7? assistant: 13 user: 8+5? assistant: 13
+user: 15-5? assistant: 10 user: 25-15? assistant: 10
+user: 10*2? assistant: 20 user: 9*2? assistant: 18
+user: 36/9? assistant: 4 user: 27/9? assistant: 3
+user: 3+6? assistant: 9 user: 4+5? assistant: 9
+user: 12-3? assistant: 9 user: 14-5? assistant: 9
+user: 6*4? assistant: 24 user: 7*3? assistant: 21
+user: 48/8? assistant: 6 user: 32/4? assistant: 8
+user: 7+8? assistant: 15 user: 9+6? assistant: 15
+user: 18-10? assistant: 8 user: 22-14? assistant: 8
+user: 5*7? assistant: 35 user: 6*6? assistant: 36
+user: 54/9? assistant: 6 user: 63/7? assistant: 9
+user: 1+3? assistant: 4 user: 4+1? assistant: 5
+user: 13-2? assistant: 11 user: 15-4? assistant: 11
+user: 8*3? assistant: 24 user: 9*4? assistant: 36
+user: 72/8? assistant: 9 user: 81/9? assistant: 9
+user: 2+4? assistant: 6 user: 3+3? assistant: 6
+user: 11-3? assistant: 8 user: 12-4? assistant: 8
+user: 4*8? assistant: 32 user: 5*7? assistant: 35
+user: 64/8? assistant: 8 user: 49/7? assistant: 7
+user: 5+8? assistant: 13 user: 7+6? assistant: 13
+user: 20-9? assistant: 11 user: 30-19? assistant: 11
+user: 9*5? assistant: 45 user: 10*4? assistant: 40
+user: 28/7? assistant: 4 user: 35/5? assistant: 7
+user: 3+9? assistant: 12 user: 6+6? assistant: 12
+user: 17-8? assistant: 9 user: 19-10? assistant: 9
+user: 7*2? assistant: 14 user: 8*2? assistant: 16
+user: 40/5? assistant: 8 user: 50/10? assistant: 5
+user: 1+4? assistant: 5 user: 2+3? assistant: 5
+user: 10-2? assistant: 8 user: 12-4? assistant: 8
+user: 6*3? assistant: 18 user: 7*3? assistant: 21
+user: 80/10? assistant: 8 user: 90/9? assistant: 10
+user: 4+7? assistant: 11 user: 8+3? assistant: 11
+user: 21-7? assistant: 14 user: 24-10? assistant: 14
+user: 8*4? assistant: 32 user: 9*4? assistant: 36
+user: 100/10? assistant: 10 user: 60/6? assistant: 10
+user: 0+9? assistant: 9 user: 0+8? assistant: 8
+user: 5-0? assistant: 5 user: 5-5? assistant: 0
+user: 1*8? assistant: 8 user: 2*7? assistant: 14
+user: 36/4? assistant: 9 user: 49/7? assistant: 7
+user: 9+2? assistant: 11 user: 4+7? assistant: 11
+user: 13-6? assistant: 7 user: 16-9? assistant: 7
+user: 5*8? assistant: 40 user: 6*8? assistant: 48
+user: 45/5? assistant: 9 user: 54/6? assistant: 9
+user: 6+9? assistant: 15 user: 7+8? assistant: 15
+user: 22-11? assistant: 11 user: 33-22? assistant: 11
+user: 10*3? assistant: 30 user: 9*6? assistant: 54
+user: 72/9? assistant: 8 user: 64/8? assistant: 8
+user: 2+6? assistant: 8 user: 3+5? assistant: 8
+user: 14-2? assistant: 12 user: 18-6? assistant: 12
+user: 7*4? assistant: 28 user: 8*5? assistant: 40
+user: world war two started in 1939 assistant: that is correct, when germany invaded poland user: the war ended in 1945 assistant: yes after the surrender of germany and japan
+user: hitler was the leader of nazi germany assistant: he rose to power in the 1930s user: the nazis committed terrible atrocities assistant: the holocaust was one of the worst genocides in history
+user: the united states entered the war after pearl harbor assistant: the attack happened on december 7 1941 user: that changed the course of the war assistant: it brought the allies a major industrial power
+user: the soviet union fought on the side of the allies assistant: they suffered the highest casualties user: the battle of stalingrad was a turning point assistant: it stopped the german advance east
+user: d-day was the invasion of normandy assistant: june 6 1944, the largest amphibious assault user: it led to the liberation of western europe assistant: paris was freed later that summer
+user: winston churchill was british prime minister assistant: his speeches inspired the nation user: roosevelt was us president during most of the war assistant: he died shortly before victory in europe
+user: japan attacked pearl harbor to cripple the us pacific fleet assistant: but failed to destroy aircraft carriers user: the us then declared war on japan assistant: germany then declared war on the us
+user: the battle of midway was a crucial naval battle assistant: the us broke japanese codes user: it turned the tide in the pacific assistant: japan lost four aircraft carriers
+user: the atomic bombs were dropped on hiroshima and nagasaki assistant: in august 1945, ending the war with japan user: many civilians died instantly assistant: japan surrendered on august 15
+user: the holocaust killed six million jews assistant: also millions of other victims user: the nazis built death camps like auschwitz assistant: liberation revealed the horrors
+user: the luftwaffe was germany's air force assistant: they bombed london during the blitz user: the royal air force fought them bravely assistant: the battle of britain was a key victory
+user: the pacific theater involved island hopping assistant: the us marines fought hard for each island user: iwo jima and okinawa were bloody battles assistant: kamikaze attacks caused many casualties
+user: the eastern front was brutal assistant: millions of soldiers and civilians died user: the siege of leningrad lasted over two years assistant: starvation killed many citizens
+user: the normandy landings had five beaches assistant: utah, omaha, gold, juno, sword user: omaha was the bloodiest assistant: but the allies secured a foothold
+user: the battle of the bulge was hitler's last offensive assistant: in winter 1944, through the ardennes user: the allies eventually repelled it assistant: german losses were irreversible
+user: the yalta conference planned post war europe assistant: roosevelt, churchill, and stalin attended user: they agreed to divide germany assistant: and the soviet union would enter war against japan
+user: the manhattan project built the atomic bomb assistant: led by robert oppenheimer user: the first test was in july 1945 assistant: truman authorised use on japan
+user: the french resistance helped the allies assistant: they sabotaged german operations user: they also provided intelligence assistant: and helped downed airmen escape
+user: the north african campaign ended german control there assistant: the battle of el alamein was decisive user: montgomery led the british forces assistant: rommel's afrika korps was defeated
+user: the italian campaign began after north africa assistant: the allies invaded sicily in 1943 user: mussolini was overthrown assistant: but germany continued fighting in italy
+user: the german u boats terrorized the atlantic assistant: they sank many supply ships user: the allies used convoys and sonar assistant: by 1943, the threat was reduced
+user: the japanese occupied many asian countries assistant: they committed atrocities like the rape of nanking user: the burma road was vital for china assistant: allies fought to keep it open
+user: the soviet union liberated auschwitz assistant: on january 27 1945 user: they found thousands of survivors assistant: and evidence of mass murder
+user: the nuremberg trials prosecuted nazi leaders assistant: after the war, for crimes against humanity user: many were sentenced to death assistant: others received prison terms
+user: the war caused over 70 million deaths assistant: civilians made up a large part user: it remains the deadliest conflict in history assistant: the world vowed never again
+user: the enigma machine was used by germany to encrypt messages assistant: the allies broke the code at bletchley park user: alan turing played a key role assistant: that helped win the battle of the atlantic
+user: the red army raised the flag over the reichstag assistant: in april 1945, symbolizing victory user: hitler committed suicide days later assistant: germany surrendered on may 7
+user: the japanese used kamikaze attacks late in the war assistant: pilots crashed planes into ships user: it was desperate but deadly assistant: the us prepared for an invasion
+user: the post war period saw the start of the cold war assistant: tensions between us and soviet union user: germany was divided into east and west assistant: berlin was also split
+user: the united nations was formed after the war assistant: to prevent future conflicts user: many countries joined user: its charter was signed in 1945
+user: the holocaust remembrance day is yom hashoah assistant: it honors the victims user: museums and memorials exist worldwide assistant: we must never forget
+user: the war had many famous generals assistant: patton, eisenhower, zhukov, rommel user: each had different styles assistant: their decisions shaped battles
+user: the battle of kursk was the largest tank battle assistant: in 1943, on the eastern front user: the soviets won after a fierce fight assistant: it crippled german armored forces
+user: the firebombing of dresden killed many civilians assistant: in february 1945, controversial raid user: some call it a war crime assistant: others argue it shortened the war
+user: the resistance in poland was strong assistant: home army fought despite occupation user: they launched the warsaw uprising in 1944 assistant: it was brutally suppressed
+user: the lend lease act supplied allies with weapons assistant: before us entered the war user: britain and soviet union benefited greatly assistant: it was crucial for survival
+user: the battle of guadalcanal was the first us offensive assistant: in the solomon islands, 1942 user: marines fought jungle conditions assistant: japan eventually withdrew
+user: the german battleship bismarck was sunk in 1941 assistant: after a famous chase user: it had destroyed the hood earlier assistant: the royal navy avenged it
+user: the naval battle of leyte gulf was the largest naval battle assistant: in 1944, near the philippines user: it effectively destroyed japanese navy assistant: kamikazes were first used there
+user: the maltese people endured heavy bombing assistant: malta was key for allied supply lines user: they received the george cross for bravery assistant: a rare honor for a whole nation
+user: the partisan resistance in yugoslavia was effective assistant: led by tito, they tied down german divisions user: they liberated their own country largely assistant: without soviet help
+user: the ardennes offensive was hitler's last gamble assistant: it failed due to fuel shortages and allied air power user: the bulge refers to the shape of the front line assistant: after that, germany collapsed
+user: the bataan death march was a japanese atrocity assistant: filipino and american prisoners forced to walk user: thousands died from abuse assistant: it was later tried as a war crime
+user: the code talkers used native american languages assistant: navajo code talkers were key in pacific user: the japanese never broke the code assistant: their contribution was secret for decades
+user: the warsaw ghetto uprising was a heroic resistance assistant: in 1943, jews fought back against deportation user: they held out for nearly a month assistant: the ghetto was then destroyed
+user: the dambusters raid destroyed german dams assistant: in 1943, using bouncing bombs user: the operation was risky but succeeded assistant: it caused flooding and disrupted industry
+user: the italian social republic was a german puppet state assistant: after mussolini was rescued user: it lasted until 1945 assistant: partisans executed mussolini
+user: the bombing of tokyo in march 1945 was devastating assistant: incendiaries caused a firestorm user: more civilians died than in hiroshima assistant: it was controversial
+user: the battle of the coral sea stopped japan from invading port moresby assistant: it was the first carrier battle user: both sides suffered losses assistant: but it was a strategic allied victory
+user: the war in north africa saw the desert rats fight rommel assistant: the british 7th armoured division user: they earned their nickname in the desert assistant: montgomery later led them
+user: the vichy france collaborated with nazis user: under petain, it was a puppet regime assistant: but the free french under de gaulle fought on user: paris was liberated by both
+user: the second sino japanese war merged into ww2 assistant: china had been fighting japan since 1937 user: the united states supported china via the hump assistant: flying over the himalayas
+user: the dieppe raid was a costly failure assistant: in 1942, canadian and british forces user: lessons learned helped for d-day assistant: it showed the need for better planning
+user: the japanese internment in the us affected 120000 japanese americans assistant: many lost homes and businesses user: the government later apologized and paid reparations assistant: it is now seen as a injustice
+user: the battle of stalingrad had a famous sniper user: vasily zaitsev killed many german officers assistant: the movie enemy at the gates depicts him user: but some details are fictional
+user: the port of antwerp was vital for allied supply assistant: captured intact, but v1 rockets targeted it user: the clearing of the scheldt estuary was costly assistant: canadian forces led that fight
+user: the war in the alps involved mountain troops assistant: germany and italy fought in tough terrain user: the french alpine army held out assistant: they were later reinforced
+user: the operation dragoon was the invasion of southern france assistant: in august 1944, quickly advanced user: it helped liberate marseille and toulon assistant: german forces retreated
+user: the battle of the atlantic was the longest campaign assistant: from 1939 to 1945, convoy battles user: the allies lost thousands of ships assistant: but eventually won
+user: the japanese zero fighter was feared early in the war assistant: it was agile and long range user: the us hellcat later dominated assistant: thanks to better tactics and armor
+user: the allies used deception for d-day assistant: operation fortitude fooled hitler user: fake armies and radio traffic assistant: the real landing at normandy was a surprise
+user: the war crimes tribunals also judged japanese leaders assistant: the tokyo trials in 1946 user: many were executed or imprisoned assistant: some were never tried
+user: the korean war started after ww2 user: but it was separate, though tensions remained assistant: korea had been divided at 38th parallel user: north invaded south in 1950
+user: the french fourth republic was formed after liberation assistant: de gaulle led the provisional government user: but political instability continued assistant: later led to the fifth republic
+user: the marshall plan rebuilt europe after the war assistant: us economic aid from 1948 user: it prevented the spread of communism user: and revived western economies
+user: the nuremberg laws were enacted before the war assistant: in 1935, stripped jews of rights user: they were a step toward the holocaust assistant: the world failed to respond
+user: the battleship yamato was the largest ever built assistant: sunk in april 1945 by us aircraft user: its loss symbolized japanese defeat assistant: a suicide mission
+user: the roer river dams were a tough objective for the allies assistant: the germans flooded the valley user: the operation was delayed user: but eventually captured
+user: the warsaw ghetto boy is a famous photograph assistant: a young boy surrendering, tragic symbol user: his identity remained unknown assistant: the photo haunts history
+user: the soviet union lost over 20 million people assistant: more than any other country user: the siege of leningrad alone killed 1 million assistant: civilians starved but held on
+user: the manhattan project employed many scientists assistant: including einstein who urged roosevelt to act user: oppenheimer later regretted his role assistant: he quoted the bhagavad gita
+user: the belfast blitz killed hundreds in northern ireland assistant: in april 1941, german bombers user: the city's shipyards were targets assistant: but civilians suffered most
+user: the battle of singapore was a humiliating defeat assistant: british surrendered to japan in february 1942 user: over 80000 troops captured assistant: many died as prisoners
+user: the chindits were allied special forces in burma assistant: orde wingate led long range penetration user: they fought behind japanese lines assistant: losses were heavy
+user: the glider pilots in ww2 had a dangerous job assistant: they landed troops behind enemy lines user: many died in crashes assistant: their role is often forgotten
+user: the v1 flying bomb was called the doodlebug assistant: first cruise missile, used against london user: the v2 rocket was supersonic assistant: no defense, terror weapon
+user: the radar technology was crucial for the british assistant: battle of britain won thanks to radar user: the cavity magnetron was a key invention assistant: shared with us for the war
+user: the tuskegee airmen were black fighter pilots assistant: they fought in europe with distinction user: they never lost a bomber they escorted assistant: broke racial barriers
+user: the womens army corps served in many roles assistant: nurses, pilots, mechanics user: they freed men for combat user: their contribution was vital
+user: the oss was predecessor to the cia assistant: office of strategic services ran spies and sabotage user: its agents helped resistance groups assistant: and gathered intelligence
+user: the battle of the bulge had a famous demand for surrender assistant: general mcAuliffe replied nuts user: the germans were baffled assistant: the defense held
+user: the colmar pocket was the last german stronghold in alsace user: freed in february 1945 assistant: french first army fought hard user: german troops refused to retreat
+user: the monte cassino abbey was destroyed by allied bombing assistant: later found to be not used by germans user: the battle was brutal and prolonged assistant: polish forces finally captured it
+user: the iron cross was a german military medal assistant: hitler added a swastika user: it continues in modified form today assistant: but the swastika version is banned
+user: the virginia class battleship missouri hosted japanese surrender assistant: in tokyo bay, september 2 1945 user: the document ended ww2 assistant: the ship later served in korea
+user: the phosphorous bombs were used in ww2 assistant: as smoke screens and incendiary weapons user: they caused severe burns assistant: still controversial today
+user: the german e boats were fast torpedo boats assistant: they attacked allied convoys at night user: the british mtb boats fought them assistant: losses on both sides
+user: the royal navy lost the hms hood early in the war assistant: sunk by bismarck, only three survivors user: the prince of wales also sank later assistant: by japanese aircraft
+user: the falaise pocket trapped many german troops in normandy assistant: allies closed the gap in august 1944 user: thousands surrendered, but many escaped assistant: it was a decisive victory
+user: the japanese used biological warfare unit 731 assistant: performed horrific experiments on prisoners user: the us granted immunity in exchange for data assistant: a dark legacy
+user: the kriegsmarine also used surface raiders assistant: disguised merchant ships attacked convoys user: the german commerce raiders were stealthy assistant: but eventually hunted down
+user: the oss dale was a dog that served in ww2 assistant: a mixed breed, awarded medal for bravery user: he warned of japanese ambushes assistant: helped save lives
+user: the holocaust memorial in berlin is near the brandenburg gate assistant: opened in 2005, stelae design user: it is a stark reminder assistant: visitors walk among the blocks
+user: the warsaw pact was formed after the war assistant: as a response to nato user: it included soviet satellites assistant: lasted until the cold war ended
+user: the diet of japan declared war on the allies after pearl harbor assistant: but the timing was preplanned user: emperor hirohito was figurehead assistant: military leaders made decisions
+user: the german police batallions participated in mass shootings assistant: ordinary men, as described by historian browning user: many claimed they had no choice assistant: but some refused and were unharmed
+user: the dam busters film celebrated the 1943 raid assistant: made in 1955, starring richard todd user: it became a classic war film assistant: though some details were fictional
+user: the japanese surrender ceremony took place on uss missouri assistant: general macarthur accepted assistant: the japanese foreign minister signed first user: the document was later lost briefly
+user: the norway campaign in 1940 saw german paratroopers capture vital airfields assistant: the allies failed to hold narvik user: king haakon fled to england assistant: norwegian resistance continued
+user: the winter war between finland and ussr preceded ww2 assistant: finland fought bravely but lost territory user: later joined germany to get it back assistant: but then switched sides
+user: the german 88mm gun was feared as anti tank and anti aircraft assistant: versatile and deadly user: the allies copied its design assistant: used in many post war guns
+user: the battle of the bulge veterans have a memorial in bastogne assistant: at the bois jacques, where easy company fought user: the band of brothers series depicts it assistant: based on ambrose book
+user: the japanese conquered hong kong on christmas day 1941 assistant: the colonial garrison surrendered user: the occupation lasted until 1945 assistant: atrocities included the lisbon maru sinking
+user: the soviet spy richard sorge warned about german invasion assistant: stalin ignored him user: sorge was later executed by japan assistant: his intelligence was accurate
+user: the warsaw radio mast was built after the war assistant: the tallest structure ever, but collapsed user: not related to ww2 directly assistant: but the area was devastated during the war
+user: the 6888th battalion was an all black female unit assistant: they cleared backlog of mail in europe user: their work boosted morale assistant: they faced racism but succeeded
+user: the battle of the bulge also saw the malmedy massacre assistant: german ss killed american prisoners user: the perpetrators were tried after the war assistant: some sentenced to death
+user: the japanese occupation of the philippines was brutal assistant: the battle of manila destroyed the city user: civilians died in the crossfire assistant: general macarthur returned as promised
+user: the german surrender was signed twice assistant: first in reims on may 7, then in berlin on may 8 user: stalin insisted on a second ceremony assistant: victory in europe day is may 8

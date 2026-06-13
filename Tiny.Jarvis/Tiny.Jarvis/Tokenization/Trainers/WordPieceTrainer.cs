@@ -1,140 +1,105 @@
-﻿using System.Diagnostics.Metrics;
-
-namespace Tiny.Jarvis.Tokenization.Trainers
+﻿namespace Tiny.Jarvis.Tokenization.Trainers
 {
     internal class WordPieceTrainer
     {
+        /// <summary>
+        /// Trains a subword vocabulary using a BPE‑like frequency‑based merge algorithm.
+        /// Each iteration merges the most frequent adjacent pair of symbols.
+        /// </summary>
         public HashSet<string> Train(IEnumerable<string> trainingCorpus, int targetVocabularySize)
         {
-            Console.WriteLine("Beginning tokenizer WordPiece training:...");
-            // Start with all characters as initial vocabulary
-            var vocabulary = trainingCorpus
-                .SelectMany(sentence => sentence.Split(' '))
-                .SelectMany(word => word.ToCharArray())
-                .Select(character => character.ToString())
-                .Distinct()
-                .ToHashSet();
+            Console.WriteLine("Beginning tokenizer training (frequency‑based merge)...");
 
-            Console.WriteLine("Looking for best merge of pairs:...");
-            Console.WriteLine(Environment.NewLine);
-
-            var counter = 1;
-            while (vocabulary.Count < targetVocabularySize)
+            // Count word frequencies (how many times each word appears)
+            var wordFreq = new Dictionary<string, int>();
+            foreach (var sentence in trainingCorpus)
             {
-                var percentage = counter * 100.0 / targetVocabularySize;
-                Console.WriteLine($"\rTraining: {percentage:F2}% complete.");
-
-                // Find the best pair of adjacent tokens to merge (by likelihood increase)
-                var bestMerge = FindBestMerge(trainingCorpus, vocabulary);
-                if (bestMerge == null) break;
-
-                vocabulary.Add(bestMerge);
-                counter++;
+                foreach (var word in sentence.Split(' ', StringSplitOptions.RemoveEmptyEntries))
+                {
+                    wordFreq.TryGetValue(word, out int count);
+                    wordFreq[word] = count + 1;
+                }
             }
 
-            Console.WriteLine("Training complete.");
-            Console.WriteLine(Environment.NewLine);
-            return vocabulary;
-        }
+            // Initial vocabulary: all characters
+            var vocab = new HashSet<string>();
+            foreach (var word in wordFreq.Keys)
+                foreach (char c in word)
+                    vocab.Add(c.ToString());
 
-        private string FindBestMerge(IEnumerable<string> trainingCorpus, HashSet<string> currentVocabulary)
-        {
-            // Generate all possible merges from existing vocabulary
-            var possibleMerges = from first in currentVocabulary
-                                 from second in currentVocabulary
-                                 select first + second;
+            // Perform merges until target size reached or no more pairs
+            int mergeCount = 0;
+            int maxMerges = targetVocabularySize * 2; // safety
 
-            var bestScore = double.NegativeInfinity;
-            string bestMerge = null;
-
-            var counter = 1;
-            foreach (var candidateMerge in possibleMerges)
+            while (vocab.Count < targetVocabularySize && mergeCount < maxMerges)
             {
-                var percentage = counter * 100.0 / possibleMerges.Count();
-                Console.WriteLine($"\rBest Merge Completion Rate: {percentage:F2}% complete.");
-
-                var likelihoodIncrease = ComputeLikelihoodIncrease(trainingCorpus, currentVocabulary, candidateMerge);
-                if (likelihoodIncrease > bestScore)
+                // Count frequencies of all adjacent symbol pairs across the corpus
+                var pairFreq = new Dictionary<string, int>();
+                foreach (var (word, freq) in wordFreq)
                 {
-                    bestScore = likelihoodIncrease;
-                    bestMerge = candidateMerge;
+                    // Segment the word using current vocabulary (greedy longest match)
+                    var symbols = SegmentWord(word, vocab);
+                    for (int i = 0; i < symbols.Count - 1; i++)
+                    {
+                        var pair = symbols[i] + symbols[i + 1];
+
+                        pairFreq.TryGetValue(pair, out int current);
+                        pairFreq[pair] = current + freq;
+                    }
                 }
 
-                counter++;
+                if (pairFreq.Count == 0) break;
+
+                // Find the pair with highest frequency
+                string bestPair = pairFreq.OrderByDescending(kv => kv.Value).First().Key;
+                vocab.Add(bestPair);
+                mergeCount++;
+
+                // Show progress
+                if (mergeCount % 50 == 0 || vocab.Count >= targetVocabularySize)
+                {
+                    double percent = vocab.Count * 100.0 / targetVocabularySize;
+                    Console.WriteLine($"\rTraining: {percent:F2}% complete (vocab size: {vocab.Count})");
+                }
             }
 
-            Console.WriteLine(Environment.NewLine);
-
-            return bestMerge;
+            Console.WriteLine($"\nTraining complete. Final vocabulary size: {vocab.Count}");
+            return vocab;
         }
 
-        private double ComputeLikelihoodIncrease(IEnumerable<string> corpus, HashSet<string> vocabulary, string candidateMerge)
+        /// <summary>
+        /// Segments a word into known symbols using greedy longest match (iterative).
+        /// </summary>
+        private List<string> SegmentWord(string word, HashSet<string> vocab)
         {
-            // Simplified: measure how many new word segmentations become possible
-            // Real WordPiece uses a proper probabilistic model
-            var extendedVocabulary = new HashSet<string>(vocabulary) { candidateMerge };
-
-            int originalTokenCount = corpus
-                .SelectMany(sentence => sentence.Split(' '))
-                .SelectMany(word => SegmentWordWithLongestMatch(word, vocabulary))
-                .Count();
-
-            int newTokenCount = corpus
-                .SelectMany(sentence => sentence.Split(' '))
-                .SelectMany(word => SegmentWordWithLongestMatch(word, extendedVocabulary))
-                .Count();
-
-            // Fewer tokens (more merges) is better → higher likelihood
-            return originalTokenCount - newTokenCount;
-        }
-
-        private IEnumerable<string> SegmentWordWithLongestMatch(string word, HashSet<string> vocabulary)
-        {
-            int position = 0;
-            int length = word.Length;
-            //int iteration = 0;
-
-            //Console.WriteLine("Looking for segment word with longest match.");
-            while (position < length)
+            var tokens = new List<string>();
+            var pos = 0;
+            var len = word.Length;
+            while (pos < len)
             {
-                bool matched = false;
-
-                // Try to find the longest token starting at current position.
-                // Limit max token length to 20 for performance (adjustable).
-                int maxTokenLen = Math.Min(length - position, 20);
-                //Console.WriteLine($"Max Token Length: {maxTokenLen} for Iteration: {iteration + 1}");
-                for (var tokenLen = maxTokenLen; tokenLen >= 1; tokenLen--)
+                var matched = false;
+                var maxLen = Math.Min(len - pos, 20); // limit token length
+                for (var l = maxLen; l >= 1; l--)
                 {
-                    var candidate = word.Substring(position, tokenLen);
-                    //Console.WriteLine($"Candidate {candidate} for token length: {tokenLen}.");
-                    if (vocabulary.Contains(candidate))
+                    string candidate = word.Substring(pos, l);
+                    if (vocab.Contains(candidate))
                     {
-                        //Console.WriteLine($"Candidate {candidate} is a match, adding...");
-                        yield return candidate;
-
-                        position += tokenLen;
-                        //Console.WriteLine($"incrementing position to {position}");
-
+                        tokens.Add(candidate);
+                        pos += l;
                         matched = true;
-                        //Console.WriteLine($"Match found, escaping...");
                         break;
                     }
                 }
 
-                // No known token → take a single character (prevents infinite loop).
                 if (!matched)
                 {
-                    //Console.WriteLine($"No match found...");
-
-                    yield return word[position].ToString();
-                    
-                    position++;
+                    tokens.Add(word[pos].ToString());
+                    pos++;
                 }
-
-                //iteration++;
             }
 
-            //Console.WriteLine("match found..");
+            return tokens;
         }
     }
+
 }

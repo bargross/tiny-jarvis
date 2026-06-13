@@ -17,13 +17,15 @@ BeginChat();
 void BeginChat()
 {
     var random = new Random(42);
-    var tokenizerStrategy = TokenizerStrategy.Chars;
+    var tokenizerStrategy = TokenizerStrategy.WordPiece;
 
      // set this based on the average length of your documents (in tokens) - it controls the context window size for the model, so longer is generally better for performance but increases training time and memory usage
     var maxSequenceLength = 34;
 
     // TODO: it might be worth trying different values for different tokenizers to see if some converge faster than others (e.g. character-level tokenizers will likely require more steps than word-level ones)
     var maxNumberOfSteps = 10000; // increase this for better performance - the optimal number depends on the size of your dataset and the complexity of the task
+    int? vocabularySize = tokenizerStrategy == TokenizerStrategy.WordPiece || tokenizerStrategy == TokenizerStrategy.Unigram ? 250 : null;
+    
 
     var geneticAlgorithm = CreateGeneticAlgorithm();
 
@@ -42,7 +44,7 @@ void BeginChat()
 
 
     // Train (or load) the model
-    var (_model, _tokenizer) = TinyJarvisModelTrainer.Train(docs, tokenizerStrategy, maxSequenceLength, maxNumberOfSteps);
+    var (_model, _tokenizer) = TinyJarvisModelTrainer.Train(docs, tokenizerStrategy, maxSequenceLength, maxNumberOfSteps, vocabularySize);
 
     // Now use the same model for chat
     Console.WriteLine("Training complete. Starting chat...");
@@ -52,7 +54,7 @@ void BeginChat()
     chat.Run();
 }
 
-TinyJarvisInteractiveGeneticAlgorithm CreateGeneticAlgorithm(int populationSize = 30, int chromosomeLength = 3, int maxGenerations = 50)
+TinyJarvisInteractiveGeneticAlgorithm CreateGeneticAlgorithm(int populationSize = 30, int chromosomeLength = 3, int maxGenerations = 100)
 {
     var crossovers = new Dictionary<CrossoverType, ICrossover>
 {
@@ -64,7 +66,7 @@ TinyJarvisInteractiveGeneticAlgorithm CreateGeneticAlgorithm(int populationSize 
     // 2. Instantiate the GA engine
     return new TinyJarvisInteractiveGeneticAlgorithm(crossovers)
     {
-        CrossoverType = CrossoverType.Average,   // can be changed
+        CrossoverType = CrossoverType.Coexistence,   // can be changed
         CrossoverProbability = 0.8,
         MutationProbability = 0.1,
         MinGeneValue = 1,
@@ -91,8 +93,8 @@ TinyJarvisInteractiveGeneticAlgorithm CreateGeneticAlgorithm(int populationSize 
             return fitness;
         },
 
-        // Termination condition: stop after 50 generations or when best fitness > 0.95
-        TerminationCondition = (gen, bestFitness, _) => gen >= 50 || bestFitness >= 0.95
+        // Termination condition: stop after 100 generations or when best fitness > 0.95
+        TerminationCondition = (gen, bestFitness, _) => gen >= maxGenerations || bestFitness >= 0.95
     };
 }
 
