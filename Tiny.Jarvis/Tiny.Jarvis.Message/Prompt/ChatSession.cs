@@ -67,6 +67,11 @@ namespace Tiny.Jarvis.Message.Prompt
                 //var bestChromosome = geneticAlgorithm.Run();
 
                 // Decode the best parameters
+                //var bestTopK = bestChromosome[0];
+                //var bestTemperature = bestChromosome[1] / 100.0;
+                //var bestTopP = bestChromosome[2] / 100.0;
+
+                // manually set
                 var bestTopK = 20;
                 var bestTemperature = 0.6;
                 var bestTopP = 0.8;
