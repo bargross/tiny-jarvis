@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using Tiny.Jarvis.Training.Models;
 
 namespace Tiny.Jarvis.Training.Util;
@@ -91,5 +92,15 @@ public static class Helpers
         }
 
         return probabilities.Count - 1;   // Fallback (should never reach)
+    }
+
+    public static IEnumerable<string> PreTokenize(string sentence)
+    {
+        // Matches either:
+        // - a word (letters, digits, apostrophes, hyphens)
+        // - a punctuation character (anything not a letter, digit, apostrophe, hyphen, or whitespace)
+        // - a sequence of whitespace (ignored)
+        foreach (Match match in Regex.Matches(sentence, @"\b[\w'-]+\b|[^\w\s'-]"))
+            yield return match.Value;
     }
 }

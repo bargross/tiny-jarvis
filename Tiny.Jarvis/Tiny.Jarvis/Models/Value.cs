@@ -32,6 +32,19 @@ public class Value(double data, Value[]? inputs = null, double[]? localGrads = n
 
     // ReLU: passes positive values through unchanged, blocks negatives entirely.
     public Value Relu() => new(Math.Max(0, Data), [this], [Data > 0 ? 1.0 : 0.0]);
+    public Value SiLU()
+    {
+        var data = this.Data;
+
+        // Compute sigmoid numerically stable
+        var sigmoid = 1.0 / (1.0 + Math.Exp(-data));
+        var result = data * sigmoid;
+
+        // Derivative: sigmoid + x * sigmoid * (1 - sigmoid)
+        var localGrad = sigmoid + data * sigmoid * (1.0 - sigmoid);
+
+        return new Value(result, [this], [localGrad]);
+    }
 
     public void Modify(Action<double, double, Value[]?, double[]?> action) => action.Invoke(Data, Grad, _inputs, LocalGrads);
     public void Modify(Action<double, double> action) => action.Invoke(Data, Grad);
@@ -57,5 +70,4 @@ public class Value(double data, Value[]? inputs = null, double[]? localGrads = n
 
         return $"Value(data={Data}, inputsLength={Inputs.Length}, Grad={Grad}, localGrads={localGradsAsStrings})";
     }
-
 }

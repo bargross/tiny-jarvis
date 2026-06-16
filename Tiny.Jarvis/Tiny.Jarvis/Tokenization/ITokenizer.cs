@@ -2,7 +2,12 @@
 {
     public interface ITokenizer
     {
+        Dictionary<string, int> IdentifierToToken { get; }
+        List<(string Left, string Right)>? MergeRules { get; }
+        Dictionary<string, double>? TokenLogProbabilities { get; }
+
         int VocabSize { get; }
+        int UnknownTokenId { get; }
         int BOS { get; }
         int EOS { get; }
 

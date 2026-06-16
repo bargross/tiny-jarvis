@@ -11,13 +11,16 @@ namespace Tiny.Jarvis.Tokenization
         private readonly string _unknownToken = "[UNK]";
         private readonly string _bosToken = "[BOS]";
         private readonly string _endOfSequenceToken = "[EOS]";
-
-
         private readonly int _vocabularySize;
 
+        public Dictionary<string, int> IdentifierToToken => _identifierToToken;
         public int VocabSize => _vocabularySize;
         public int BOS { get; } // Beginning of Sequence token ID
         public int EOS { get; } // End of Sequence token ID
+        public int UnknownTokenId => _unknownTokenIdentifier;
+
+        public List<(string Left, string Right)>? MergeRules => _mergeRules;
+        public Dictionary<string, double>? TokenLogProbabilities => null;
 
         public BytePairEncodingTokenizer(IEnumerable<string> docs, int unknownTokenIdentifier = -1, int numberOfMerges = 15)
         {
@@ -54,6 +57,17 @@ namespace Tiny.Jarvis.Tokenization
             _tokenToIdentifier = tokenToIdentifier;
             _mergeRules = trainingResult.MergeRules; // or new List<(string,string)> if not provided
             _vocabularySize = _identifierToToken.Count;
+        }
+
+        public BytePairEncodingTokenizer(List<(string Left, string Right)> mergeRules, Dictionary<string, int> identifierToToken, int unknownTokenIdentifier, int bOS, int eOS)
+        {
+            _mergeRules = mergeRules;
+            _tokenToIdentifier = identifierToToken.ToDictionary(x => x.Value, x => x.Key);
+            _identifierToToken = identifierToToken;
+            _unknownTokenIdentifier = unknownTokenIdentifier;
+            _vocabularySize = _identifierToToken.Count;
+            BOS = bOS;
+            EOS = eOS;
         }
 
         public IReadOnlyList<int> Encode(string text)

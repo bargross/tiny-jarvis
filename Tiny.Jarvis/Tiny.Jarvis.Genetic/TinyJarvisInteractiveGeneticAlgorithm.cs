@@ -6,15 +6,15 @@ using Tiny.Jarvis.Genetic.Roulette;
 
 namespace Tiny.Jarvis.Genetic
 {
-    public class TinyJarvisInteractiveGeneticAlgorithm
+    public class TinyJarvisInteractiveGeneticAlgorithm<IPopulationType> where IPopulationType: struct
     {
         private readonly IReadOnlyDictionary<CrossoverType, ICrossover> _crossovers;
         private readonly IMutator _mutator;
-        private readonly IPopulationInitializer _initializer;
+        private readonly IPopulationInitializer<IPopulationType> _initializer;
         private readonly IRouletteSelector _roulette;
         private readonly Random _random;
 
-        public CrossoverType CrossoverType { get; set; } = Models.CrossoverType.Average;
+        public CrossoverType CrossoverType { get; set; } = CrossoverType.Average;
         public double CrossoverProbability { get; set; } = 0.8;
         public double MutationProbability { get; set; } = 0.05;
         public int MinGeneValue { get; set; } = 0;
@@ -25,19 +25,19 @@ namespace Tiny.Jarvis.Genetic
         public int MaxGenerations { get; set; }
 
         // Problem-specific delegates
-        public Func<int[], double> FitnessFunction { get; set; } = null!;
-        public Func<int, double, int[][], bool> TerminationCondition { get; set; } = (_, _, _) => false;
+        public Func<IPopulationType[], double> FitnessFunction { get; set; } = null!;
+        public Func<int, double, IPopulationType[][], bool> TerminationCondition { get; set; } = (_, _, _) => false;
 
         public TinyJarvisInteractiveGeneticAlgorithm(
             IReadOnlyDictionary<CrossoverType, ICrossover> crossovers,
             IMutator? mutator = null,
-            IPopulationInitializer? initializer = null,
+            IPopulationInitializer<IPopulationType>? initializer = null,
             IRouletteSelector? roulette = null,
             Random? random = null)
         {
             _crossovers = crossovers ?? throw new ArgumentNullException(nameof(crossovers));
             _mutator = mutator ?? new StandardMutator();
-            _initializer = initializer ?? new RandomPopulationInitializer();
+            _initializer = initializer ?? new RandomPopulationInitializer<IPopulationType>();
             _roulette = roulette ?? new RouletteSelector();
             _random = random ?? Random.Shared;
         }
@@ -45,10 +45,10 @@ namespace Tiny.Jarvis.Genetic
         public int[] Run()
         {
             // Initialise population
-            var population = new int[PopulationSize][];
+            var population = new IPopulationType[PopulationSize][];
             for (var i = 0; i < PopulationSize; i++)
             {
-                population[i] = new int[ChromosomeLength];
+                population[i] = new IPopulationType[ChromosomeLength];
                 _initializer.Initialize(population[i], MinGeneValue, MaxGeneValue, _random);
             }
 
@@ -75,10 +75,10 @@ namespace Tiny.Jarvis.Genetic
                     return bestChromosome;
 
                 // Next generation
-                var newPopulation = new int[PopulationSize][];
+                var newPopulation = new IPopulationType[PopulationSize][];
                 var eliteIndices = GetTopIndices(fitness, EliteCount);
                 for (var i = 0; i < EliteCount; i++)
-                    newPopulation[i] = (int[])population[eliteIndices[i]].Clone();
+                    newPopulation[i] = (IPopulationType[])population[eliteIndices[i]].Clone();
 
                 var newIdx = EliteCount;
                 var crossover = _crossovers[CrossoverType];
@@ -101,9 +101,9 @@ namespace Tiny.Jarvis.Genetic
                         _mutator.Mutate(childB, MutationProbability, MinGeneValue, MaxGeneValue, _random);
                     }
 
-                    newPopulation[newIdx++] = childA;
+                    newPopulation[newIdx++] = childA.Cast<IPopulationType>().ToArray();
                     if (newIdx < PopulationSize)
-                        newPopulation[newIdx++] = childB;
+                        newPopulation[newIdx++] = childB.Cast<IPopulationType>().ToArray();
                 }
 
                 population = newPopulation;

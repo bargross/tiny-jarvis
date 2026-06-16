@@ -2,57 +2,72 @@ using Tiny.Jarvis.Enums;
 using Tiny.Jarvis.Extensions;
 using Tiny.Jarvis.MLModels;
 using Tiny.Jarvis.Tokenization;
-using Tiny.Jarvis.Training.Enums;
 using Tiny.Jarvis.Training.Generators;
 using Tiny.Jarvis.Training.Models;
+using Tiny.Jarvis.Training.Optimization;
 using Tiny.Jarvis.Training.Orchestrators;
+using Tiny.Jarvis.Training.Serializers;
 using Tiny.Jarvis.Training.Util;
 
 namespace Tiny.Jarvis.Training.Trainers;
 
 public static class TinyJarvisModelTrainer
 {
-    public static (TinyJarvisModel, ITokenizer) Train(IEnumerable<string> docs, TokenizerStrategy strategy, OptimizerStrategy optimizerStrategy, int maxSequenceLength = 32, int totalNumberOfSteps = 10000, int? vocabularySize = 50, int numOfMerges = 15)
+    public static (TinyJarvisModel, ITokenizer) Train(IEnumerable<string> docs, TinyJarvisHyperParameters hyperParams)
     {
         // metrics
         var watch = System.Diagnostics.Stopwatch.StartNew();
 
         // ── Hyperparameters ──────────────────────────────────────
 
-        var embeddingSize = 36;
-        var layerCount = 4; // just one transformer block for speed - try layerCount=2 to see improvement
-        var headCount = 4;
-        var learningRate = 0.001;
+        var embeddingSize = hyperParams.EmbeddingSize;
+        var layerCount = hyperParams.LayerCount; // just one transformer block for speed - try layerCount=2 to see improvement
+        var headCount = hyperParams.HeadCount;
+        var learningRate = hyperParams.LearningRate;
+        var tokenizerStrategy = hyperParams.TokenizerStrategy;
+        var optimizerStrategy = hyperParams.OptimizerStrategy;
+        var vocabularySize = hyperParams.VocabularySize;
+        var numOfMerges = hyperParams.NumOfMerges;
+        var maxSequenceLength = hyperParams.MaxSequenceLength;
+        var totalNumberOfSteps = hyperParams.MaxNumberOfSteps;
+        var maxGradNorm = hyperParams.MaxGradNorm;
         var startTime = DateTime.UtcNow;
+        var docList = docs.ToList();
 
         // ── Dataset and Tokenizer ────────────────────────────────
         var tokenizer = null as ITokenizer;
-        switch (strategy)
+
+        if (hyperParams.LoadTokenizerFile != null)
+            tokenizer = TokenizerSerializer.Load(hyperParams.LoadTokenizerFile, tokenizerStrategy);
+
+        else switch (tokenizerStrategy)
         {
             case TokenizerStrategy.Chars:
-                tokenizer = TokenizerGenerator.GetTokenizer(strategy, ["abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 .,|!?-'\""]);
+                tokenizer = TokenizerGenerator.GetTokenizer(tokenizerStrategy, ["abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 .,|!?-'\""]);
                 break;
 
             default:
-                tokenizer = TokenizerGenerator.GetTokenizer(strategy, docs, vocabularySize ?? 50, numOfMerges);
+                tokenizer = TokenizerGenerator.GetTokenizer(tokenizerStrategy, docList, vocabularySize, numOfMerges);
                 break;
         }
-
-        Console.WriteLine($"num docs: {docs.Count()}");
+        
+        Console.WriteLine($"num docs: {docList.Count}");
         Console.WriteLine($"vocab size: {tokenizer.VocabSize}");
 
         Console.WriteLine($"Training Start Time: {startTime}");
 
         // ── Model ────────────────────────────────────────────────
-
-        var model = new TinyJarvisModel(
-            embeddingSize,
-            headCount,
-            layerCount,
-            maxSequenceLength,
-            new Random(42),
-            tokenizer
-        );
+        var random = new Random(42);
+        var model = hyperParams.LoadModelFile is not null ? 
+            ModelSerializer.Load(hyperParams.LoadModelFile, tokenizer, random) 
+            : new TinyJarvisModel(
+                embeddingSize,
+                headCount,
+                layerCount,
+                maxSequenceLength,
+                random,
+                tokenizer
+            );
 
         Console.WriteLine($"num params: {model.Parameters.Count}");
         Console.WriteLine(Environment.NewLine);
@@ -61,7 +76,14 @@ public static class TinyJarvisModelTrainer
 
         var momentum = 0.9;
         var weightDecay = 0.0;
-        var optimiser = OptimizerGenerator.GetOptimizer(optimizerStrategy, model.Parameters, learningRate, totalNumberOfSteps, momentum, weightDecay);
+        var optimizer = null as IOptimizer;
+        if (hyperParams.LoadTokenizerFile != null)
+        {
+            optimizer.SetParameters(model.Parameters.ToList());
+
+            optimizer = OptimizerSerializer.Load(hyperParams.LoadTokenizerFile, optimizerStrategy, learningRate, totalNumberOfSteps, maxGradNorm, momentum, weightDecay);
+        }
+        else optimizer = OptimizerGenerator.GetOptimizer(optimizerStrategy, model.Parameters, learningRate, totalNumberOfSteps, momentum, weightDecay, maxGradNorm);
         
         // ── Training Loop ────────────────────────────────────────
 
@@ -80,8 +102,10 @@ public static class TinyJarvisModelTrainer
 
         for (var step = 0; step < totalNumberOfSteps; step++)
         {
-            var doc = docs.ElementAt(step % docs.Count());
-            var tokens = new List<int> { tokenizer.BOS };
+            var doc = docList[(step % docList.Count)];
+
+            // the LLM will know that all sequences start with BOS and end with EOS after training, or should.
+            var tokens = new List<int> { tokenizer.BOS }; // add bos token at the beginning of the sequence to mark the start
 
             tokens.AddRange(tokenizer.Encode(doc));
 
@@ -91,6 +115,7 @@ public static class TinyJarvisModelTrainer
             var maxInputPositions = maxSequenceLength - 1;   // reserve one slot for generation - EOS token
             var tokenCount = Math.Min(tokens.Count - 1, maxInputPositions);
 
+            // ── Forward ──────────────────────────────────────────
             var keys = model.CreateKvCache();
             var values = model.CreateKvCache();
 
@@ -114,18 +139,21 @@ public static class TinyJarvisModelTrainer
             
             if (step == 0) lastMilestoneLoss = avgLoss;
 
-            optimiser.ZeroGrad();
+            optimizer.ZeroGrad();
 
+            // ── Clear graph buffers ───────────────────────────────
             topo.Clear();
             visited.Clear();
             backwardStack.Clear();
 
-            loss.Modify((_, grad) => grad = grad == default ? 1.0 : grad);
+            // ── Backward ──────────────────────────────────────────
+            loss.Grad = loss.Grad == default ? maxGradNorm : loss.Grad;
             loss.Backward(topo, visited, backwardStack);
 
-            optimiser.Step(step);
-            var percentage = (step + 1) * 100.0 / totalNumberOfSteps;
+            // ── Update weights ────────────────────────────────────
+            optimizer.Step(step);
 
+            var percentage = (step + 1) * 100.0 / totalNumberOfSteps;
             if (step == 0 || (step + 1) % 100 == 0)
             {
                 Console.Write($"\rTraining: {percentage:F2}% complete  | ");
@@ -143,12 +171,10 @@ public static class TinyJarvisModelTrainer
                 lastMilestoneLoss = avgLoss;
             }
 
-
             // For debug during Training, to ensure the model is generating more coherent sentences, so basically to know its learning.
             if ((step + 1) % 500 == 0)
             {
                 Console.WriteLine(Environment.NewLine);
-                Console.WriteLine("\n--- Testing generation ---");
                 Console.WriteLine("\n--- Testing generation ---");
 
                 var testPrompt = "user: hello assistant:";
@@ -164,10 +190,14 @@ public static class TinyJarvisModelTrainer
                 Console.WriteLine("--- End test ---\n");
             }
 
-            if (avgLoss < 1e-5) break; // if avg loss is 0, then break out as the model is not learning anything.
+            if (avgLoss < 0.1) break; // if avg loss is 0.1, then break out as the model is not learning anything.
         }
 
         watch.Stop();
+
+        ModelSerializer.Save(model, hyperParams);
+        TokenizerSerializer.Save(tokenizer, hyperParams.SaveTokenizerFile);
+        OptimizerSerializer.Save(optimizer, hyperParams.SaveOptimizerFile);
 
         var timespan = TimeSpan.FromMilliseconds(watch.ElapsedMilliseconds);
         var secondsDiff = timespan.Seconds;

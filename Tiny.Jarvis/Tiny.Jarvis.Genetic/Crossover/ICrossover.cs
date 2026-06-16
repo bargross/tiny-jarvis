@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-
-namespace Tiny.Jarvis.Genetic.Crossover
+﻿namespace Tiny.Jarvis.Genetic.Crossover
 {
     public interface ICrossover
     {

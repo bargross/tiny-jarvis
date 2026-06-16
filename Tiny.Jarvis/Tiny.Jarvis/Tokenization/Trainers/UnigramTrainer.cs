@@ -1,131 +1,171 @@
-﻿namespace Tiny.Jarvis.Tokenization.Trainers
+﻿using System.Text.RegularExpressions;
+using Tiny.Jarvis.Training.Util;
+
+namespace Tiny.Jarvis.Tokenization.Trainers
 {
-    internal class UnigramTrainer
+    public class UnigramTrainer
     {
+        private const int MaxSeedVocabSize = 5000;
+        private const int MaxSubstringLength = 5;
+
+        /// <summary>
+        /// Trains a Unigram subword vocabulary using EM and frequency‑based pruning.
+        /// Returns a dictionary of token -> log probability.
+        /// </summary>
         public Dictionary<string, double> Train(IEnumerable<string> trainingCorpus, int targetVocabularySize)
         {
-            // Step 1: Create seed vocabulary from all possible substrings (up to some length limit)
-            var seedVocabulary = new HashSet<string>();
+            Console.WriteLine("Beginning Unigram tokenizer training...");
+
+            // ── Pre‑tokenize: split into words and punctuation using the same logic as WordPiece ──
+            var wordFreq = new Dictionary<string, int>();
             foreach (var sentence in trainingCorpus)
             {
-                foreach (var word in sentence.Split(' '))
+                foreach (var token in Helpers.PreTokenize(sentence))  // punctuation separated
                 {
-                    for (var start = 0; start < word.Length; start++)
+                    wordFreq.TryGetValue(token, out int cnt);
+                    wordFreq[token] = cnt + 1;
+                }
+            }
+
+            // Build seed vocabulary from character n‑grams (frequent substrings) ──
+            var ngramCounts = new Dictionary<string, int>();
+            foreach (var word in wordFreq.Keys)
+            {
+                for (var len = 1; len <= Math.Min(MaxSubstringLength, word.Length); len++)
+                {
+                    for (var start = 0; start <= word.Length - len; start++)
                     {
-                        for (var end = start + 1; end <= Math.Min(start + 10, word.Length); end++) // limit substring length
-                        {
-                            seedVocabulary.Add(word.Substring(start, end - start));
-                        }
+                        var sub = word.Substring(start, len);
+
+                        ngramCounts.TryGetValue(sub, out int cnt);
+                        ngramCounts[sub] = cnt + wordFreq[word];
                     }
                 }
             }
 
-            // Step 2: Estimate initial probabilities (via EM algorithm – simplified here)
-            var tokenProbabilities = EstimateProbabilities(trainingCorpus, seedVocabulary);
+            var seedVocab = ngramCounts.OrderByDescending(kv => kv.Value)
+                                       .Take(MaxSeedVocabSize)
+                                       .Select(kv => kv.Key)
+                                       .ToHashSet();
 
-            // Step 3: Prune vocabulary until target size reached
-            var currentVocabulary = seedVocabulary.ToHashSet();
-            while (currentVocabulary.Count > targetVocabularySize)
+            // Ensure we include all single characters (they are already there from n‑grams)
+            foreach (var character in wordFreq.Keys.SelectMany(w => w).Distinct())
+                seedVocab.Add(character.ToString());
+
+            Console.WriteLine($"Seed vocabulary size: {seedVocab.Count}");
+
+            // Estimate initial probabilities via EM (run a few iterations) ──
+            var tokenProbs = seedVocab.ToDictionary(t => t, t => 1.0 / seedVocab.Count);
+            for (var emIter = 0; emIter < 5; emIter++)
             {
-                // Compute loss increase if each token is removed
-                var lossIncrease = currentVocabulary
-                    .AsParallel()
-                    .Select(token => new { Token = token, Loss = ComputeLossIncrease(trainingCorpus, currentVocabulary, token, tokenProbabilities) })
-                    .OrderBy(item => item.Loss)
-                    .ToList();
-
-                // Remove the token with smallest loss increase (prune)
-                var tokenToRemove = lossIncrease.First().Token;
-                currentVocabulary.Remove(tokenToRemove);
-
-                // Re-estimate probabilities on reduced vocabulary
-                tokenProbabilities = EstimateProbabilities(trainingCorpus, currentVocabulary);
-            }
-
-            return tokenProbabilities;
-        }
-
-        private Dictionary<string, double> EstimateProbabilities(IEnumerable<string> corpus, HashSet<string> vocabulary)
-        {
-            // Simplified: count token occurrences using best segmentation (Viterbi)
-            var tokenCounts = new Dictionary<string, int>();
-
-            foreach (var sentence in corpus)
-            {
-                foreach (var word in sentence.Split(' '))
+                var newTokenCounts = new Dictionary<string, int>();
+                foreach (var (word, freq) in wordFreq)
                 {
-                    var segmentation = FindBestSegmentation(word, vocabulary, new Dictionary<string, double>()); // initial uniform
+                    var segmentation = FindBestSegmentation(word, seedVocab, tokenProbs);
+                    if (segmentation == null) continue; // should not happen
+
                     foreach (var token in segmentation)
                     {
-                        if (!tokenCounts.ContainsKey(token)) tokenCounts[token] = 0;
-                        tokenCounts[token]++;
+                        newTokenCounts.TryGetValue(token, out int cnt);
+                        newTokenCounts[token] = cnt + freq;
                     }
                 }
+
+                var total = newTokenCounts.Values.Sum();
+                if (total == 0) break;
+                tokenProbs = newTokenCounts.ToDictionary(kv => kv.Key, kv => (double)kv.Value / total);
             }
 
-            int totalTokens = tokenCounts.Values.Sum();
-            return tokenCounts.ToDictionary(
-                pair => pair.Key,
-                pair => (double)pair.Value / totalTokens
-            );
-        }
+            // Prune to target size by removing the least frequent tokens ──
+            var finalVocab = tokenProbs.OrderByDescending(kv => kv.Value)
+                                       .Take(targetVocabularySize)
+                                       .Select(kv => kv.Key)
+                                       .ToHashSet();
 
-        private double ComputeLossIncrease(
-            IEnumerable<string> corpus,
-            HashSet<string> vocabulary,
-            string candidateToRemove,
-            Dictionary<string, double> currentProbabilities)
-        {
-            var reducedVocabulary = new HashSet<string>(vocabulary);
-            reducedVocabulary.Remove(candidateToRemove);
-
-            double originalLoss = ComputeTotalLoss(corpus, vocabulary, currentProbabilities);
-            double newLoss = ComputeTotalLoss(corpus, reducedVocabulary, currentProbabilities);
-
-            return newLoss - originalLoss;
-        }
-
-        private double ComputeTotalLoss(
-            IEnumerable<string> corpus,
-            HashSet<string> vocabulary,
-            Dictionary<string, double> probabilities)
-        {
-            double totalNegativeLogLikelihood = 0.0;
-            foreach (var sentence in corpus)
+            // Re‑estimate final probabilities on the pruned vocabulary (one more EM iteration)
+            var finalProbs = new Dictionary<string, double>();
+            var finalCounts = new Dictionary<string, int>();
+            foreach (var (word, freq) in wordFreq)
             {
-                foreach (var word in sentence.Split(' '))
+                var segmentation = FindBestSegmentation(word, finalVocab, tokenProbs);
+                if (segmentation == null) continue;
+
+                foreach (var token in segmentation)
                 {
-                    var segmentation = FindBestSegmentation(word, vocabulary, probabilities);
-                    double wordProbability = segmentation
-                        .Select(token => probabilities.GetValueOrDefault(token, 1e-10))
-                        .Aggregate(1.0, (product, prob) => product * prob);
-                    totalNegativeLogLikelihood += -Math.Log(wordProbability);
+                    finalCounts.TryGetValue(token, out int cnt);
+                    finalCounts[token] = cnt + freq;
                 }
             }
-            return totalNegativeLogLikelihood;
+
+            var finalTotal = finalCounts.Values.Sum();
+            finalProbs = finalCounts.ToDictionary(kv => kv.Key, kv => Math.Log((double)kv.Value / finalTotal));
+
+            Console.WriteLine($"Training complete. Final vocabulary size: {finalVocab.Count}");
+            return finalProbs;
         }
 
+        /// <summary>
+        /// Viterbi segmentation that returns the most probable token sequence,
+        /// using log probabilities to avoid underflow.
+        /// </summary>
         private List<string> FindBestSegmentation(
             string word,
             HashSet<string> vocabulary,
-            Dictionary<string, double> probabilities)
+            Dictionary<string, double> probs)   // probs are raw probabilities (not logs)
         {
-            // Viterbi (same as earlier but uses provided probabilities)
-            var best = new Dictionary<int, (double LogProb, List<string> Tokens)> { [0] = (0.0, new List<string>()) };
-            for (var end = 1; end <= word.Length; end++)
+            // Convert to log probabilities once for efficiency
+            var logProbs = new Dictionary<string, double>();
+            foreach (var kv in probs)
+                logProbs[kv.Key] = Math.Log(kv.Value);
+
+            var n = word.Length;
+            var dp = new double[n + 1];
+            var bestPrev = new int[n + 1];
+
+            for (var i = 1; i <= n; i++)
+                dp[i] = double.NegativeInfinity;
+
+            dp[0] = 0;
+            bestPrev[0] = -1;
+
+            for (var end = 1; end <= n; end++)
             {
-                var candidates = from start in Enumerable.Range(0, end)
-                                 let token = word.Substring(start, end - start)
-                                 where vocabulary.Contains(token)
-                                 let logProb = best[start].LogProb + Math.Log(probabilities.GetValueOrDefault(token, 1e-10))
-                                 select new { LogProb = logProb, Tokens = best[start].Tokens.Concat(new[] { token }).ToList() };
-                var bestCandidate = candidates.OrderByDescending(c => c.LogProb).FirstOrDefault();
-                if (bestCandidate != null)
-                    best[end] = (bestCandidate.LogProb, bestCandidate.Tokens);
-                else
-                    best[end] = (double.NegativeInfinity, new List<string>()); // fallback
+                for (var start = 0; start < end; start++)
+                {
+                    var token = word.Substring(start, end - start);
+                    if (vocabulary.Contains(token))
+                    {
+                        var logProb = logProbs.GetValueOrDefault(token, -20.0); // penalty for unknown
+                        var candidate = dp[start] + logProb;
+                        if (candidate > dp[end])
+                        {
+                            dp[end] = candidate;
+                            bestPrev[end] = start;
+                        }
+                    }
+                }
+
+                // Fallback: if no segmentation, treat as single character
+                if (double.IsNegativeInfinity(dp[end]))
+                {
+                    var ch = word[end - 1].ToString();
+                    var logProb = logProbs.GetValueOrDefault(ch, -20.0);
+                    dp[end] = dp[end - 1] + logProb;
+                    bestPrev[end] = end - 1;
+                }
             }
-            return best[word.Length].Tokens;
+
+            // Reconstruct segmentation
+            var tokens = new List<string>();
+            var pos = n;
+            while (pos > 0)
+            {
+                var prev = bestPrev[pos];
+                tokens.Insert(0, word.Substring(prev, pos - prev));
+                pos = prev;
+            }
+
+            return tokens;
         }
     }
 }

@@ -1,11 +1,7 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-
-namespace Tiny.Jarvis.Genetic.Population
+﻿namespace Tiny.Jarvis.Genetic.Population
 {
-    public interface IPopulationInitializer
+    public interface IPopulationInitializer<IPopulationType>
     {
-        void Initialize(int[] array, int minGeneValue, int maxGeneValue, Random random);
+        void Initialize(IPopulationType[] array, int minGeneValue, int maxGeneValue, Random random);
     }
 }

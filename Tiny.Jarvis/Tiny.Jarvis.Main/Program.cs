@@ -1,4 +1,5 @@
-﻿using Tiny.Jarvis.Enums;
+﻿using System.Text;
+using Tiny.Jarvis.Enums;
 using Tiny.Jarvis.Genetic;
 using Tiny.Jarvis.Genetic.Crossover;
 using Tiny.Jarvis.Genetic.Models;
@@ -8,33 +9,54 @@ using Tiny.Jarvis.Training.Models;
 using Tiny.Jarvis.Training.Trainers;
 using Tiny.Jarvis.Util;
 
-// docs, variables etc...
-var assetsPath = Path.Combine(FindSolutionRoot(), "Tiny.Jarvis", "Assets");
-var dirPathRef = Path.GetFullPath(assetsPath);
-
 // begins the chat and continues until the user exits
 BeginChat();
 
 void BeginChat()
 {
+    // docs, variables etc...
+    var assetsPath = Path.Combine(FindSolutionRoot(), "Tiny.Jarvis", "Assets");
+    var dirPathRef = Path.GetFullPath(assetsPath);
+
+    var savedRunsDir = Path.Combine(FindSolutionRoot(), "Tiny.Jarvis", "SavedRuns");
+
+    var pathToModelSavedRuns = Path.GetFullPath(Path.Combine(savedRunsDir, "models"));
+    var pathToTokenizerSavedRuns = Path.GetFullPath(Path.Combine(savedRunsDir, "tokenizers"));
+    var pathToOptimizerSavedRuns = Path.GetFullPath(Path.Combine(savedRunsDir, "optimizers"));
+
     var random = new Random(42);
-    var tokenizerStrategy = TokenizerStrategy.WordPiece;
-    var optimizerStrategy = OptimizerStrategy.Adam;
+    var hyperParams = new TinyJarvisHyperParameters
+    {
+        TokenizerStrategy = TokenizerStrategy.WordPiece,
+        OptimizerStrategy = OptimizerStrategy.Adam,
+        EmbeddingSize = 64,
+        MaxSequenceLength = 42,
+        LearningRate = 0.0003,
+        NumOfMerges = 200,
+        VocabularySize = 600,
+        MaxNumberOfSteps = 25000,
+        MaxGradNorm = 1.0,
+        SaveModelFile = GetUniqueFileNameWithTimestamp(pathToModelSavedRuns, "model-run", "bin"),
+        SaveOptimizerFile = GetUniqueFileNameWithTimestamp(pathToOptimizerSavedRuns, "optimizer-run", "bin"),
+        SaveTokenizerFile = GetUniqueFileNameWithTimestamp(pathToModelSavedRuns, "tokenizer-run", "json")
+    };
 
-     // set this based on the average length of your documents (in tokens) - it controls the context window size for the model, so longer is generally better for performance but increases training time and memory usage
-    var maxSequenceLength = 34;
+    //var geneticAlgorithm = CreateGeneticAlgorithm();
 
-    // TODO: it might be worth trying different values for different tokenizers to see if some converge faster than others (e.g. character-level tokenizers will likely require more steps than word-level ones)
-    var maxNumberOfSteps = 10000; // increase this for better performance - the optimal number depends on the size of your dataset and the complexity of the task
-    int? vocabularySize = tokenizerStrategy == TokenizerStrategy.WordPiece || tokenizerStrategy == TokenizerStrategy.Unigram ? 250 : null;
-    
+    Console.WriteLine("Load from previous run? (y/n)");
+    var response = Console.ReadLine();
 
-    var geneticAlgorithm = CreateGeneticAlgorithm();
+    if (response == "y") 
+    {
+        hyperParams.LoadModelFile = LoadFromPreviousRun(pathToModelSavedRuns, "model");
+        hyperParams.LoadTokenizerFile = LoadFromPreviousRun(pathToTokenizerSavedRuns, "tokenizer");
+        hyperParams.LoadOptimizerFile = LoadFromPreviousRun(pathToOptimizerSavedRuns, "optimizer");
+    }
 
     //var vocabularySize = 64; // only for tokenizers other than Character
 
     // Get the training data
-    var filePaths = SelectTrainingFile(dirPathRef, new List<string>());
+    var filePaths = SelectFiles(dirPathRef);
 
     Console.WriteLine("Chosen training files:");
     Console.WriteLine("-------------------------");
@@ -46,27 +68,51 @@ void BeginChat()
 
 
     // Train (or load) the model
-    var (_model, _tokenizer) = TinyJarvisModelTrainer.Train(docs, tokenizerStrategy, optimizerStrategy, maxSequenceLength, maxNumberOfSteps, vocabularySize);
+    var (_model, _tokenizer) = TinyJarvisModelTrainer.Train(docs, hyperParams);
 
     // Now use the same model for chat
     Console.WriteLine("Training complete. Starting chat...");
     Console.WriteLine(Environment.NewLine);
-    var chat = new ChatSession(_model, _tokenizer, geneticAlgorithm);
+
+    var chat = new ChatSession(_model, _tokenizer, null);
 
     chat.Run();
 }
 
-TinyJarvisInteractiveGeneticAlgorithm CreateGeneticAlgorithm(int populationSize = 30, int chromosomeLength = 3, int maxGenerations = 100)
+string? LoadFromPreviousRun(string path, string item)
+{
+    Console.WriteLine($"Load {item} which run? (select index)");
+
+
+    var files = SelectFiles(path);
+
+    if (files.Count > 1) throw new ArgumentException("can only load 1 model at a time.");
+
+    return files.FirstOrDefault();
+}
+
+string GetUniqueFileNameWithTimestamp(string directory, string baseName, string extension)
+{
+    var safeBase = string.Concat(baseName.Split(Path.GetInvalidFileNameChars()));
+
+    if (string.IsNullOrWhiteSpace(safeBase)) safeBase = "file";
+
+    var timestamp = DateTime.Now.ToString("yyyy-MM-dd_HH-mm-ss");
+
+    return Path.Combine(directory, $"{safeBase}_{timestamp}.{extension}");
+}
+
+TinyJarvisInteractiveGeneticAlgorithm<double> CreateGeneticAlgorithm(int populationSize = 30, int chromosomeLength = 3, int maxGenerations = 100)
 {
     var crossovers = new Dictionary<CrossoverType, ICrossover>
-{
-    { CrossoverType.Average, new AverageCrossover() },
-    { CrossoverType.Internal, new InternalCrossover() },
-    { CrossoverType.Coexistence, new CoexistenceCrossover() }
-};
+    {
+        { CrossoverType.Average, new AverageCrossover() },
+        { CrossoverType.Internal, new InternalCrossover() },
+        { CrossoverType.Coexistence, new CoexistenceCrossover() }
+    };
 
-    // 2. Instantiate the GA engine
-    return new TinyJarvisInteractiveGeneticAlgorithm(crossovers)
+    // Instantiate the GA engine
+    return new TinyJarvisInteractiveGeneticAlgorithm<double>(crossovers)
     {
         CrossoverType = CrossoverType.Coexistence,   // can be changed
         CrossoverProbability = 0.8,
@@ -113,25 +159,58 @@ List<string> GetDocs(List<string> filePaths, Random random)
                 docs.AddRange(Document.LoadFromJson<TitanicPassengerData>(kvp.Key).Select(x => x.ToString()));
 
             if (kvp.Key.Contains("bitext-travel-llm-chatbot-training-dataset.jsonl")) 
-            {
-                var documents = Document.LoadFromJson<BaggageQueryIntentData>(kvp.Key);
-
-                docs.AddRange(documents.Select(x => x.ToString()));
-            }
+                docs.AddRange(Document.LoadFromJson<BaggageQueryIntentData>(kvp.Key).Select(x => x.ToString()));
 
             if (kvp.Key.Contains("pickle-dataset-all-training"))
                 docs.AddRange(Document.LoadFromJson<PickleDocument>(kvp.Key).SelectMany(doc => doc.Sentences).SelectMany(x => x));
 
             if (kvp.Key.Contains("helpsteer-training"))
-            {
-                var documents = Document.LoadFromJson<PromptResponseData>(kvp.Key);
+                docs.AddRange(Document.LoadFromJson<PromptResponseData>(kvp.Key).Select(doc => doc.ToString()));
 
-                docs.AddRange(documents.Select(doc => doc.ToString()));
-            }
+            if (kvp.Key.Contains("chatalpaca-10k"))
+                docs.AddRange(ConvertChatAlpacaToTinyJarvisFormat(Document.LoadFromJson<ChatAlpacaConversation>(kvp.Key)));
         }
         else docs.AddRange(Document.LoadFromFile(kvp.Key, random));
 
     return docs;
+}
+
+/// <summary>
+/// Converts a list of deserialized ChatAlpaca conversations into the format expected by TinyJarvis.
+/// Each conversation becomes a single string with alternating "user: ... assistant: ..." turns.
+/// </summary>
+/// <param name="conversations">List of ChatAlpaca conversation objects.</param>
+/// <returns>List of formatted strings, one per conversation.</returns>
+List<string> ConvertChatAlpacaToTinyJarvisFormat(List<ChatAlpacaConversation> conversations)
+{
+    var result = new List<string>(conversations.Count);
+
+    foreach (var conv in conversations)
+    {
+        var turns = new StringBuilder();
+
+        foreach (var turn in conv.Conversations)
+        {
+            // Map role: "human" -> "user", "gpt" -> "assistant"
+            string? role = turn.From?.ToLowerInvariant() switch
+            {
+                "human" => "user",
+                "gpt" => "assistant",
+                _ => null
+            };
+
+            if (role == null) continue; // skip unknown roles
+
+            if (turns.Length > 0)
+                turns.Append(' ');
+            turns.Append($"{role}: {turn.Value}");
+        }
+
+        if (turns.Length > 0)
+            result.Add(turns.ToString());
+    }
+
+    return result;
 }
 
 string FindSolutionRoot()
@@ -149,8 +228,9 @@ string FindSolutionRoot()
     throw new DirectoryNotFoundException("Solution root not found.");
 }
 
-List<string> SelectTrainingFile(string pathToDir, List<string> files)
+List<string> SelectFiles(string pathToDir)
 {
+    var files = new List<string>();
     var filesAvailable = new DirectoryInfo(pathToDir)
         .GetFiles("*", new EnumerationOptions
         {

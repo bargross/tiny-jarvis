@@ -5,7 +5,7 @@ using Tiny.Jarvis.Tokenization;
 
 namespace Tiny.Jarvis.Message.Prompt
 {
-    public class ChatSession(TinyJarvisModel model, ITokenizer tokenizer, TinyJarvisInteractiveGeneticAlgorithm geneticAlgorithm)
+    public class ChatSession(TinyJarvisModel model, ITokenizer tokenizer, TinyJarvisInteractiveGeneticAlgorithm<double> geneticAlgorithm)
     {
         private readonly List<ConversationExchange> _history = new();
 

@@ -7,7 +7,7 @@ namespace Tiny.Jarvis.Training.Generators
 {
     public static class OptimizerGenerator
     {
-        public static IOptimizer GetOptimizer(OptimizerStrategy? strategy, IEnumerable<Value> parameters, double learningRate, int totalNumOfSteps, double momentum = 0.9, double weightDecay = 0.0)
+        public static IOptimizer GetOptimizer(OptimizerStrategy? strategy, IEnumerable<Value> parameters, double learningRate, int totalNumOfSteps, double momentum = 0.9, double weightDecay = 0.0, double maxGradNorm = 1.0)
         {
             if (strategy == null)
             {
@@ -16,7 +16,7 @@ namespace Tiny.Jarvis.Training.Generators
 
             return strategy switch
             {
-                OptimizerStrategy.Adam => new AdamOptimiser(parameters, learningRate, totalNumOfSteps),
+                OptimizerStrategy.Adam => new AdamOptimiser(parameters, learningRate, totalNumOfSteps, maxGradNorm),
                 OptimizerStrategy.SGDMomentum => new SGDMomentumOptimiser(parameters, learningRate, momentum, weightDecay),
                 _ => throw new ArgumentOutOfRangeException(nameof(strategy), strategy, null)
             };
