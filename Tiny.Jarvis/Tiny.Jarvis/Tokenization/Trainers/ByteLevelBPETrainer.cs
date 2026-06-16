@@ -146,6 +146,7 @@ namespace Tiny.Jarvis.Training.Tokenization.Trainers
                             i++;
                         }
                     }
+
                     wordByteSequences[wordIndex] = newSeq;
                 }
 
@@ -155,7 +156,7 @@ namespace Tiny.Jarvis.Training.Tokenization.Trainers
                 // Report progress
                 if (maxMerges > 0)
                 {
-                    var percent = (int)((double)mergeCount / maxMerges * 100);
+                    var percent = Math.Round(((double)mergeCount / maxMerges * 100), 2);
 
                     Console.WriteLine($"Progress: {percent}% | Merges: {mergeCount}/{maxMerges} | Current vocab size: {currentVocabSize}");
                 }
