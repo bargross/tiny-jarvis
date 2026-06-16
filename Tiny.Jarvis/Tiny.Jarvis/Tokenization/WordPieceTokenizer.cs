@@ -3,7 +3,7 @@ using Tiny.Jarvis.Training.Util;
 
 namespace Tiny.Jarvis.Tokenization
 {
-    public class WordPieceTokenizer: ITokenizer
+    public class WordPieceTokenizer: ITokenizer<string>
     {
         private readonly HashSet<string> _tokenVocabulary;
         private readonly Dictionary<int, string> _tokenToIdentifier;

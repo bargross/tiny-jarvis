@@ -15,7 +15,9 @@ public class AdamOptimiser: IOptimizer
     private readonly double _baseLearningRate;
     private readonly int _totalSteps;
     private readonly double _maxGradNorm;
-    private int? _step;
+    private int _step = 0;
+
+    public int CurrentStep => _step;
 
     public AdamOptimiser(IEnumerable<Value> parameters, double learningRate, int totalSteps, double maxGradNorm = 1.0)
     {
@@ -44,12 +46,8 @@ public class AdamOptimiser: IOptimizer
     public void ZeroGrad() => _parameters.ForEach(param => param.Grad = 0.0);
 
     // Apply one Adam update to every parameter using its current Grad.
-    public void Step(int? computedStep = null)
+    public void Step(int step)
     {
-        if (computedStep is null) throw new ArgumentException("Missing step");
-
-        var step = computedStep.Value;
-        
         _step = step;
 
         // Compute the total L2 norm of all gradients

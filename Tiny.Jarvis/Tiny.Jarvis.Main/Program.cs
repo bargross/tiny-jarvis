@@ -27,7 +27,7 @@ void BeginChat()
     var random = new Random(42);
     var hyperParams = new TinyJarvisHyperParameters
     {
-        TokenizerStrategy = TokenizerStrategy.WordPiece,
+        TokenizerStrategy = TokenizerStrategy.ByteLevelBPE,
         OptimizerStrategy = OptimizerStrategy.Adam,
         EmbeddingSize = 64,
         MaxSequenceLength = 42,

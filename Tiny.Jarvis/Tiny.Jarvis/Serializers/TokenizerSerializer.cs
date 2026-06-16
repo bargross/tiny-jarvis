@@ -3,16 +3,17 @@ using System.Text.Json.Serialization;
 using Tiny.Jarvis.Enums;
 using Tiny.Jarvis.Tokenization;
 using Tiny.Jarvis.Training.Orchestrators;
+using Tiny.Jarvis.Training.Tokenization;
 
 namespace Tiny.Jarvis.Training.Serializers
 {
     public static class TokenizerSerializer
     {
-        private class TokenizerData
+        private class TokenizerData<TVocabulary>
         {
-            public Dictionary<string, double>? TokenLogProbabilities { get; set; }
-            public Dictionary<string, int>? IdentifierToToken { get; set; }
-            public List<(string Left, string Right)>? MergeRules { get; set; }
+            public Dictionary<TVocabulary, double>? TokenLogProbabilities { get; set; }
+            public Dictionary<TVocabulary, int>? IdentifierToToken { get; set; }
+            public List<(TVocabulary Left, TVocabulary Right)>? MergeRules { get; set; }
             public int UnknownTokenId { get; set; }
             public int BosTokenId { get; set; }
             public int EosTokenId { get; set; }
@@ -21,9 +22,9 @@ namespace Tiny.Jarvis.Training.Serializers
         /// <summary>
         /// Saves a WordPieceTokenizer to a JSON file.
         /// </summary>
-        public static void Save(ITokenizer tokenizer, string filePath)
+        public static void Save<TVocabulary>(ITokenizer<TVocabulary> tokenizer, string filePath)
         {
-            var data = new TokenizerData
+            var data = new TokenizerData<TVocabulary>
             {
                 IdentifierToToken = tokenizer.IdentifierToToken, // need a public getter, or make internal
                 UnknownTokenId = tokenizer.UnknownTokenId,
@@ -39,21 +40,44 @@ namespace Tiny.Jarvis.Training.Serializers
         /// <summary>
         /// Loads a WordPieceTokenizer from a JSON file.
         /// </summary>
-        public static ITokenizer Load(string filePath, TokenizerStrategy strategy)
+        public static ITokenizer<TVocabulary> Load<TVocabulary>(string filePath, TokenizerStrategy strategy)
         {
             var json = File.ReadAllText(filePath);
-            var data = JsonSerializer.Deserialize<TokenizerData>(json);
+            var data = JsonSerializer.Deserialize<TokenizerData<TVocabulary>>(json);
 
             switch(strategy)
             {
                 case TokenizerStrategy.Chars:
-                    return TokenizerGenerator.GetTokenizer(TokenizerStrategy.Chars, ["abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 .,|!?-'\""]);
+                    return TokenizerGenerator.GetTokenizer<string>(TokenizerStrategy.Chars, ["abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 .,|!?-'\""]) as ITokenizer<TVocabulary>;
                 case TokenizerStrategy.WordPiece:
-                    return new WordPieceTokenizer(data.IdentifierToToken, data.UnknownTokenId, data.BosTokenId, data.EosTokenId);
+                {
+                        var identifierToToken = data.IdentifierToToken as Dictionary<string, int>;
+
+                    return new WordPieceTokenizer(identifierToToken, data.UnknownTokenId, data.BosTokenId, data.EosTokenId) as ITokenizer<TVocabulary>;
+                }
                 case TokenizerStrategy.Unigram:
-                    return new UnigramTokenizer(data.TokenLogProbabilities, data.IdentifierToToken, data.UnknownTokenId, data.BosTokenId, data.EosTokenId);
+                {
+                    var identifierToToken = data.IdentifierToToken as Dictionary<string, int>;
+                    var tokenLogProbabilities = data.TokenLogProbabilities as Dictionary<string, double>;
+
+                    return new UnigramTokenizer(tokenLogProbabilities, identifierToToken, data.UnknownTokenId, data.BosTokenId, data.EosTokenId) as ITokenizer<TVocabulary>;
+                }
                 case TokenizerStrategy.BytePair:
-                    return new BytePairEncodingTokenizer(data.MergeRules, data.IdentifierToToken, data.UnknownTokenId, data.BosTokenId, data.EosTokenId);
+                { 
+                    
+                    var identifierToToken = data.IdentifierToToken as Dictionary<string, int>;
+                    var mergeRules = data.MergeRules as List<(string left, string right)>;
+
+                    return new BytePairEncodingTokenizer(mergeRules, identifierToToken, data.UnknownTokenId, data.BosTokenId, data.EosTokenId) as ITokenizer<TVocabulary>;
+                }
+                case TokenizerStrategy.ByteLevelBPE:
+                {
+
+                    var identifierToToken = data.IdentifierToToken as Dictionary<byte[], int>;
+                    var mergeRules = data.MergeRules as List<(byte[] left, byte[] right)>;
+
+                    return (ITokenizer<TVocabulary>)new ByteLevelBPETokenizer(identifierToToken.ToDictionary(kv => kv.Value, kv => kv.Key), mergeRules, data.UnknownTokenId, data.BosTokenId, data.EosTokenId);
+                }
             }
 
             return null;

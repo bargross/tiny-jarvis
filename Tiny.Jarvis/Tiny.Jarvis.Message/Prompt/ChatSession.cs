@@ -2,10 +2,11 @@
 using Tiny.Jarvis.Message.Models;
 using Tiny.Jarvis.MLModels;
 using Tiny.Jarvis.Tokenization;
+using Tiny.Jarvis.Training.ControlFlow;
 
 namespace Tiny.Jarvis.Message.Prompt
 {
-    public class ChatSession(TinyJarvisModel model, ITokenizer tokenizer, TinyJarvisInteractiveGeneticAlgorithm<double> geneticAlgorithm)
+    public class ChatSession(TinyJarvisModel model, Either<ITokenizer<byte[]>, ITokenizer<string>> tokenizerContainer, TinyJarvisInteractiveGeneticAlgorithm<double> geneticAlgorithm)
     {
         private readonly List<ConversationExchange> _history = new();
 
@@ -58,7 +59,7 @@ namespace Tiny.Jarvis.Message.Prompt
                 Console.WriteLine(prompt);
 
                 // Get encoded sequence with Bos at the beginning
-                var tokens = tokenizer.Encode(prompt);
+                var tokens = tokenizerContainer.IsLeft ? tokenizerContainer.Left.Encode(prompt) : tokenizerContainer.Right.Encode(prompt);
 
                 //Console.WriteLine($"BOS token: {tokenizer.BOS}"); // debug
                 //Console.WriteLine($"tokens before Generate is called: {string.Join(",", tokens)}"); // debug
@@ -73,13 +74,13 @@ namespace Tiny.Jarvis.Message.Prompt
 
                 // manually set
                 var bestTopK = 20;
-                var bestTemperature = 0.6;
+                var bestTemperature = 0.7;
                 var bestTopP = 0.8;
 
                 var responseTokens = model.Generate(tokens, maxNewTokens: 100, temperature: bestTemperature, topK: bestTopK, topP: bestTopP);
 
                 //Console.WriteLine($"Generated response tokens: {string.Join(",", responseTokens)}"); // debug
-                var response = tokenizer.Decode(responseTokens);
+                var response = tokenizerContainer.IsLeft ? tokenizerContainer.Left.Decode(responseTokens) : tokenizerContainer.Right.Decode(responseTokens);
 
                 //Console.WriteLine($"Generated response: {response}"); // debug
                 // Clean and display

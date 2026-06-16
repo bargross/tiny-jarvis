@@ -63,7 +63,7 @@ namespace Tiny.Jarvis.Training.Serializers
         /// <param name="tokenizer">The tokenizer instance (must have matching vocab size).</param>
         /// <param name="random">Random number generator (used for re‑initialisation, though weights are overwritten).</param>
         /// <returns>A new TinyJarvisModel instance with the loaded weights.</returns>
-        public static TinyJarvisModel Load(string filePath, ITokenizer tokenizer, Random random)
+        public static TinyJarvisModel Load<IVocabulary>(string filePath, int bos, int eos, Random random)
         {
             using var reader = new BinaryReader(File.OpenRead(filePath));
 
@@ -116,7 +116,7 @@ namespace Tiny.Jarvis.Training.Serializers
 
             var outputHead = ReadValueMatrix();
 
-            return new TinyJarvisModel(embeddingSize, headCount, layerCount, maxSeqLen, tokenEmbeddings, positionEmbeddings, outputHead, layers, random, tokenizer);
+            return new TinyJarvisModel(embeddingSize, headCount, layerCount, maxSeqLen, tokenEmbeddings, positionEmbeddings, outputHead, layers, random, bos, eos);
         }
     }
 }

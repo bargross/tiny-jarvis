@@ -2,16 +2,16 @@
 
 namespace Tiny.Jarvis.Tokenization
 {
-    public class BytePairEncodingTokenizer: ITokenizer
+    public class BytePairEncodingTokenizer: ITokenizer<string>
     {
         private readonly Dictionary<string, int> _identifierToToken;
         private readonly Dictionary<int, string> _tokenToIdentifier;
         private readonly List<(string Left, string Right)> _mergeRules;
-        private readonly int _unknownTokenIdentifier;
         private readonly string _unknownToken = "[UNK]";
         private readonly string _bosToken = "[BOS]";
         private readonly string _endOfSequenceToken = "[EOS]";
         private readonly int _vocabularySize;
+        private readonly int _unknownTokenIdentifier;
 
         public Dictionary<string, int> IdentifierToToken => _identifierToToken;
         public int VocabSize => _vocabularySize;
@@ -57,6 +57,8 @@ namespace Tiny.Jarvis.Tokenization
             _tokenToIdentifier = tokenToIdentifier;
             _mergeRules = trainingResult.MergeRules; // or new List<(string,string)> if not provided
             _vocabularySize = _identifierToToken.Count;
+
+            _unknownTokenIdentifier = _identifierToToken[_unknownToken];
         }
 
         public BytePairEncodingTokenizer(List<(string Left, string Right)> mergeRules, Dictionary<string, int> identifierToToken, int unknownTokenIdentifier, int bOS, int eOS)

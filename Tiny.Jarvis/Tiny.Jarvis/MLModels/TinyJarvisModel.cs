@@ -25,7 +25,8 @@ public class TinyJarvisModel
     private readonly int _layerCount;
     private readonly int _headDimension;
 
-    private readonly ITokenizer _tokenizer;
+    private readonly int _bos;
+    private readonly int _eos;
 
     public Value[][] TokenEmbeddings
     {
@@ -60,14 +61,16 @@ public class TinyJarvisModel
         Value[][] outputHead,
         List<LayerWeights> layers,
         Random random,
-        ITokenizer tokenizer
+        int bos,
+        int eos
     )
     {
         _embeddingSize = embeddingSize;
         _headCount = headCount;
         _layerCount = layerCount;
         _headDimension = embeddingSize / headCount;
-        _tokenizer = tokenizer;
+        _bos = bos;
+        _eos = eos;
 
         _tokenEmbeddings = tokenEmbeddings;
         _positionEmbeddings = positionEmbeddings;
@@ -81,17 +84,20 @@ public class TinyJarvisModel
         int layerCount,
         int maxSequenceLength,
         Random random,
-        ITokenizer tokenizer
+        int bos,
+        int eos,
+        int vocabularySize
     ) {
         _embeddingSize = embeddingSize;
         _headCount = headCount;
         _layerCount = layerCount;
         _headDimension = embeddingSize / headCount;
-        _tokenizer = tokenizer;
+        _bos = bos;
+        _eos = eos;
 
-        _tokenEmbeddings = Helpers.CreateMatrix(random, _tokenizer.VocabSize, embeddingSize);
+        _tokenEmbeddings = Helpers.CreateMatrix(random, vocabularySize, embeddingSize);
         _positionEmbeddings = Helpers.CreateMatrix(random, maxSequenceLength, embeddingSize);
-        _outputHead = Helpers.CreateMatrix(random, _tokenizer.VocabSize, embeddingSize);
+        _outputHead = Helpers.CreateMatrix(random, vocabularySize, embeddingSize);
 
         _layers = new List<LayerWeights>();
         for (int i = 0; i < layerCount; i++)
@@ -280,8 +286,8 @@ public class TinyJarvisModel
     {
         // Copy the prompt to a mutable list and optionally prepend BOS
         var allTokens = new List<int>(tokens);
-        if (prependBos && (allTokens.Count == 0 || allTokens[0] != _tokenizer.BOS))
-            allTokens.Insert(0, _tokenizer.BOS);
+        if (prependBos && (allTokens.Count == 0 || allTokens[0] != _bos))
+            allTokens.Insert(0, _bos);
         
         // Reserve at least one slot for generation, but don't go over MaxSequenceLength
         var maxPromptTokens = MaxSequenceLength - 1; // leave room for at least one generated token
@@ -310,7 +316,7 @@ public class TinyJarvisModel
 
             var nextToken = Helpers.SampleToken(lastLogits, temperature, topK, topP);
 
-            if (nextToken == _tokenizer.EOS)
+            if (nextToken == _eos)
                 break;
 
             generated.Add(nextToken);

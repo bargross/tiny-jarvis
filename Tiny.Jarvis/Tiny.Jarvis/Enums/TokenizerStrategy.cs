@@ -5,6 +5,7 @@
         Chars = 0,
         BytePair = 1,
         WordPiece = 2,
-        Unigram = 3
+        Unigram = 3,
+        ByteLevelBPE = 4
     }
 }

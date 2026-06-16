@@ -2,6 +2,7 @@ using Tiny.Jarvis.Enums;
 using Tiny.Jarvis.Extensions;
 using Tiny.Jarvis.MLModels;
 using Tiny.Jarvis.Tokenization;
+using Tiny.Jarvis.Training.ControlFlow;
 using Tiny.Jarvis.Training.Generators;
 using Tiny.Jarvis.Training.Models;
 using Tiny.Jarvis.Training.Optimization;
@@ -13,7 +14,7 @@ namespace Tiny.Jarvis.Training.Trainers;
 
 public static class TinyJarvisModelTrainer
 {
-    public static (TinyJarvisModel, ITokenizer) Train(IEnumerable<string> docs, TinyJarvisHyperParameters hyperParams)
+    public static (TinyJarvisModel, Either<ITokenizer<byte[]>, ITokenizer<string>>) Train(IEnumerable<string> docs, TinyJarvisHyperParameters hyperParams)
     {
         // metrics
         var watch = System.Diagnostics.Stopwatch.StartNew();
@@ -35,39 +36,61 @@ public static class TinyJarvisModelTrainer
         var docList = docs.ToList();
 
         // ── Dataset and Tokenizer ────────────────────────────────
-        var tokenizer = null as ITokenizer;
+        Either<ITokenizer<byte[]>, ITokenizer<string>> tokenizerContainer;
+
 
         if (hyperParams.LoadTokenizerFile != null)
-            tokenizer = TokenizerSerializer.Load(hyperParams.LoadTokenizerFile, tokenizerStrategy);
-
-        else switch (tokenizerStrategy)
         {
-            case TokenizerStrategy.Chars:
-                tokenizer = TokenizerGenerator.GetTokenizer(tokenizerStrategy, ["abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 .,|!?-'\""]);
-                break;
+            if (tokenizerStrategy == TokenizerStrategy.ByteLevelBPE)
+                tokenizerContainer = new Either<ITokenizer<byte[]>, ITokenizer<string>>(TokenizerSerializer.Load<byte[]>(hyperParams.LoadTokenizerFile, tokenizerStrategy));
 
-            default:
-                tokenizer = TokenizerGenerator.GetTokenizer(tokenizerStrategy, docList, vocabularySize, numOfMerges);
-                break;
+            else tokenizerContainer = new Either<ITokenizer<byte[]>, ITokenizer<string>>(TokenizerSerializer.Load<string>(hyperParams.LoadTokenizerFile, tokenizerStrategy));
         }
-        
+
+        else
+        {
+            if (tokenizerStrategy == TokenizerStrategy.ByteLevelBPE)
+                tokenizerContainer = new Either<ITokenizer<byte[]>, ITokenizer<string>>(TokenizerGenerator.GetTokenizer<byte[]>(tokenizerStrategy, docs, vocabularySize, numOfMerges));
+
+            else switch (tokenizerStrategy)
+            {
+                case TokenizerStrategy.Chars:
+                    tokenizerContainer = new Either<ITokenizer<byte[]>, ITokenizer<string>>(TokenizerGenerator.GetTokenizer<string>(tokenizerStrategy, ["abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 .,|!?-'\""]));
+                    break;
+
+                default:
+                    tokenizerContainer = new Either<ITokenizer<byte[]>, ITokenizer<string>>(TokenizerGenerator.GetTokenizer<string>(tokenizerStrategy, docList, vocabularySize, numOfMerges));
+                    break;
+            }
+        }
+
+        var existingVocabularySize = tokenizerContainer.IsLeft ? tokenizerContainer.Left.VocabSize : tokenizerContainer.Right.VocabSize;
         Console.WriteLine($"num docs: {docList.Count}");
-        Console.WriteLine($"vocab size: {tokenizer.VocabSize}");
+        Console.WriteLine($"vocab size: {existingVocabularySize}");
 
         Console.WriteLine($"Training Start Time: {startTime}");
 
         // ── Model ────────────────────────────────────────────────
         var random = new Random(42);
-        var model = hyperParams.LoadModelFile is not null ? 
-            ModelSerializer.Load(hyperParams.LoadModelFile, tokenizer, random) 
-            : new TinyJarvisModel(
-                embeddingSize,
-                headCount,
-                layerCount,
-                maxSequenceLength,
-                random,
-                tokenizer
-            );
+        var bos = tokenizerContainer.IsLeft ? tokenizerContainer.Left.BOS : tokenizerContainer.Right.BOS;
+        var eos = tokenizerContainer.IsLeft ? tokenizerContainer.Left.EOS : tokenizerContainer.Right.EOS;
+        var model = null as TinyJarvisModel;
+        
+        if (hyperParams.LoadModelFile != null)
+        {
+            if (tokenizerContainer.IsLeft) model = ModelSerializer.Load<byte[]>(hyperParams.LoadModelFile, bos, eos, random);
+            else model = ModelSerializer.Load<string>(hyperParams.LoadModelFile, bos, eos, random);
+        }
+        else model = new TinyJarvisModel(
+            embeddingSize,
+            headCount,
+            layerCount,
+            maxSequenceLength,
+            random,
+            bos,
+            eos,
+            existingVocabularySize
+        );
 
         Console.WriteLine($"num params: {model.Parameters.Count}");
         Console.WriteLine(Environment.NewLine);
@@ -100,16 +123,17 @@ public static class TinyJarvisModelTrainer
         var visited = new HashSet<Value>();
         var backwardStack = new Stack<(Value, int)>();
 
-        for (var step = 0; step < totalNumberOfSteps; step++)
+        // the optimizer keeps track of the steps so we can carry on from that step in the loop
+        for (var step = optimizer.CurrentStep; step < totalNumberOfSteps; step++)
         {
             var doc = docList[(step % docList.Count)];
 
             // the LLM will know that all sequences start with BOS and end with EOS after training, or should.
-            var tokens = new List<int> { tokenizer.BOS }; // add bos token at the beginning of the sequence to mark the start
+            var tokens = new List<int> { bos }; // add bos token at the beginning of the sequence to mark the start
 
-            tokens.AddRange(tokenizer.Encode(doc));
+            tokens.AddRange(tokenizerContainer.IsLeft ? tokenizerContainer.Left.Encode(doc) : tokenizerContainer.Right.Encode(doc));
 
-            tokens.Add(tokenizer.EOS); // mark the end of the sequence
+            tokens.Add(eos); // mark the end of the sequence
 
             // Any sequence (word, sentence, etc...) longer than maxSequenceLength - 1 is silently truncated here.
             var maxInputPositions = maxSequenceLength - 1;   // reserve one slot for generation - EOS token
@@ -171,6 +195,17 @@ public static class TinyJarvisModelTrainer
                 lastMilestoneLoss = avgLoss;
             }
 
+            // save the configuration every 5000 steps
+            if ((step + 1) % 5000 == 0)
+            {
+                ModelSerializer.Save(model, hyperParams);
+
+                if (tokenizerContainer.IsLeft) TokenizerSerializer.Save(tokenizerContainer.Left, hyperParams.SaveTokenizerFile);
+                else TokenizerSerializer.Save(tokenizerContainer.Right, hyperParams.SaveTokenizerFile);
+
+                OptimizerSerializer.Save(optimizer, hyperParams.SaveOptimizerFile);
+            }
+
             // For debug during Training, to ensure the model is generating more coherent sentences, so basically to know its learning.
             if ((step + 1) % 500 == 0)
             {
@@ -178,12 +213,12 @@ public static class TinyJarvisModelTrainer
                 Console.WriteLine("\n--- Testing generation ---");
 
                 var testPrompt = "user: hello assistant:";
-                var promptIds = tokenizer.Encode(testPrompt).ToList();
+                var encodedPromptIds = (tokenizerContainer.IsLeft ? tokenizerContainer.Left.Encode(testPrompt) : tokenizerContainer.Right.Encode(testPrompt)).ToList();
 
-                promptIds.Insert(0, tokenizer.BOS);
-                var tokenIds = model.Generate(promptIds, maxNewTokens: 20, temperature: 0.8);
+                encodedPromptIds.Insert(0, bos);
+                var tokenIds = model.Generate(encodedPromptIds, maxNewTokens: 20, temperature: 0.8);
 
-                var response = tokenizer.Decode(tokenIds);
+                var response = tokenizerContainer.IsLeft ? tokenizerContainer.Left.Decode(tokenIds) : tokenizerContainer.Right.Decode(tokenIds);
 
                 Console.WriteLine($"Prompt: {testPrompt}");
                 Console.WriteLine($"Response: {response}");
@@ -196,7 +231,10 @@ public static class TinyJarvisModelTrainer
         watch.Stop();
 
         ModelSerializer.Save(model, hyperParams);
-        TokenizerSerializer.Save(tokenizer, hyperParams.SaveTokenizerFile);
+
+        if (tokenizerContainer.IsLeft) TokenizerSerializer.Save(tokenizerContainer.Left, hyperParams.SaveTokenizerFile);
+        else TokenizerSerializer.Save(tokenizerContainer.Right, hyperParams.SaveTokenizerFile);
+
         OptimizerSerializer.Save(optimizer, hyperParams.SaveOptimizerFile);
 
         var timespan = TimeSpan.FromMilliseconds(watch.ElapsedMilliseconds);
@@ -208,6 +246,6 @@ public static class TinyJarvisModelTrainer
         Console.WriteLine($"End time: {DateTime.UtcNow}");
         Console.WriteLine($"Training was completed in: {hoursDiff}H {minutesDiff}m {secondsDiff}s");
 
-        return (model, tokenizer);
+        return (model, tokenizerContainer);
     }
 }

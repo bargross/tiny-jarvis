@@ -13,6 +13,9 @@ namespace Tiny.Jarvis.Optimisers
         private readonly double _momentum;
         private readonly double _weightDecay;
         private double[] _velocities;
+        private int _step = 0;
+
+        public int CurrentStep => _step;
 
         /// <summary>
         /// Creates a new SGD with Momentum optimiser.
@@ -35,6 +38,7 @@ namespace Tiny.Jarvis.Optimisers
         }
 
          public SGDMomentumOptimiser(
+            int step,
             double[] velocities,
             double learningRate = 0.001,
             double momentum = 0.9,
@@ -55,8 +59,10 @@ namespace Tiny.Jarvis.Optimisers
         /// <summary>
         /// Performs a single optimisation step: updates all parameters using SGD with Momentum.
         /// </summary>
-        public void Step(int? step = null) // not required but is to match the interface
+        public void Step(int step) // not required but is to match the interface
         {
+            _step = step;
+
             for (int i = 0; i < _parameters.Count; i++)
             {
                 var param = _parameters[i];
@@ -74,7 +80,7 @@ namespace Tiny.Jarvis.Optimisers
             }
         }
 
-        public OptimizerState GetState() => new OptimizerState { Velocities = _velocities };
+        public OptimizerState GetState() => new OptimizerState { Step = _step, Velocities = _velocities };
 
         public void SetParameters(List<Value> parameters) => _parameters.AddRange(parameters);
     }

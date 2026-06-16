@@ -37,7 +37,7 @@ namespace Tiny.Jarvis.Training.Serializers
         {
             using var reader = new BinaryReader(File.OpenRead(filePath));
             
-            int? step = strategy == OptimizerStrategy.SGDMomentum ? null : reader.ReadInt32();
+            var step = reader.ReadInt32();
             var length = reader.ReadInt32();
             var momentums = new double[length];
             var squaredGradAvg = new double[length];
@@ -56,8 +56,8 @@ namespace Tiny.Jarvis.Training.Serializers
 
             return strategy switch
             {
-                OptimizerStrategy.Adam => new AdamOptimiser(step.Value, momentums, squaredGradAvg, learningRate, totalSteps, maxGradNorm),
-                OptimizerStrategy.SGDMomentum => new SGDMomentumOptimiser(velocities, learningRate, momentum, weightDecay)
+                OptimizerStrategy.Adam => new AdamOptimiser(step, momentums, squaredGradAvg, learningRate, totalSteps, maxGradNorm),
+                OptimizerStrategy.SGDMomentum => new SGDMomentumOptimiser(step, velocities, learningRate, momentum, weightDecay)
             };
         }
     }

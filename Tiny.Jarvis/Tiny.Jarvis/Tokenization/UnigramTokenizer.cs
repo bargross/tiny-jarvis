@@ -3,7 +3,7 @@ using Tiny.Jarvis.Training.Util;
 
 namespace Tiny.Jarvis.Tokenization
 {
-    public class UnigramTokenizer: ITokenizer
+    public class UnigramTokenizer: ITokenizer<string>
     {
         private readonly Dictionary<string, double> _tokenLogProbabilities;
         private readonly Dictionary<int, string> _tokenToIdentifier;

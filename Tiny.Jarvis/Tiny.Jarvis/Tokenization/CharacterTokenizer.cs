@@ -1,6 +1,6 @@
 namespace Tiny.Jarvis.Tokenization;
 
-public class CharacterTokenizer : ITokenizer
+public class CharacterTokenizer : ITokenizer<string>
 {
     private readonly Dictionary<int, string> _tokenToIdentifier; // ID -> character string
     private readonly Dictionary<string, int> _identifierToToken; // character string -> ID

@@ -1,10 +1,10 @@
 ﻿namespace Tiny.Jarvis.Tokenization
 {
-    public interface ITokenizer
+    public interface ITokenizer<TIdentifier>
     {
-        Dictionary<string, int> IdentifierToToken { get; }
-        List<(string Left, string Right)>? MergeRules { get; }
-        Dictionary<string, double>? TokenLogProbabilities { get; }
+        Dictionary<TIdentifier, int> IdentifierToToken { get; }
+        List<(TIdentifier Left, TIdentifier Right)>? MergeRules { get; }
+        Dictionary<TIdentifier, double>? TokenLogProbabilities { get; }
 
         int VocabSize { get; }
         int UnknownTokenId { get; }
