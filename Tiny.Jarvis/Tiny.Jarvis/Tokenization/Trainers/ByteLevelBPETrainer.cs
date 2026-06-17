@@ -154,17 +154,9 @@ namespace Tiny.Jarvis.Training.Tokenization.Trainers
                 currentVocabSize = idToToken.Count;
 
                 // Report progress
-                if (maxMerges > 0)
-                {
-                    var percent = Math.Round(((double)mergeCount / maxMerges * 100), 2);
+                var percent = Math.Round(((double)mergeCount / maxMerges * 100), 2);
 
-                    Console.WriteLine($"Progress: {percent}% | Merges: {mergeCount}/{maxMerges} | Current vocab size: {currentVocabSize}");
-                }
-                else
-                {
-                    Console.WriteLine("No merges possible (target already reached or lower than initial).");
-                    break;
-                }
+                Console.WriteLine($"Progress: {percent}% | Merges: {mergeCount}/{maxMerges} | Current vocab size: {currentVocabSize}");
             }
 
             var finalVocabSize = idToToken.Count;
