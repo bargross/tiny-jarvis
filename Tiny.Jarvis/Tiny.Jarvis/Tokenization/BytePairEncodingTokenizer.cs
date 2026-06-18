@@ -22,13 +22,10 @@ namespace Tiny.Jarvis.Tokenization
         public List<(string Left, string Right)>? MergeRules => _mergeRules;
         public Dictionary<string, double>? TokenLogProbabilities => null;
 
-        public BytePairEncodingTokenizer(IEnumerable<string> docs, int unknownTokenIdentifier = -1, int numberOfMerges = 15)
+        public BytePairEncodingTokenizer(IEnumerable<string> trainingDocuments, int unknownTokenIdentifier = -1, int numberOfMerges = 15)
         {
-            // Combine all documents into one large text (or pass as enumerable)
-            string allText = string.Join("\n", docs);
-
             // Train BPE on the combined text (assuming the trainer can work on a single string)
-            var trainingResult = new BytePairEncodingTrainer().Train(allText, numberOfMerges);
+            var trainingResult = new BytePairEncodingTrainer().Train(trainingDocuments, numberOfMerges);
             // trainingResult should contain:
             //   - Vocabulary (HashSet<string>) of all subword tokens
             //   - MergeRules (List<(string,string)>)

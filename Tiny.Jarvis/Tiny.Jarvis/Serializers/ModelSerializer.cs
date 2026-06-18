@@ -1,5 +1,4 @@
 ﻿using Tiny.Jarvis.MLModels;
-using Tiny.Jarvis.Tokenization;
 using Tiny.Jarvis.Training.Models;
 
 namespace Tiny.Jarvis.Training.Serializers

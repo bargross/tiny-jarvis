@@ -15,8 +15,8 @@ namespace Tiny.Jarvis.Message.Prompt
         public void Run()
         {
             Console.WriteLine("Chat started. Type 'end' or 'exit' to stop, 'chg usr-prt' to change user prompt & 'chg bot-prt' to change the bot prompt \n");
-            string userPrompt = "user";
-            string botPrompt = "assistant";
+            var userPrompt = "user";
+            var botPrompt = "assistant";
 
             while (_running)
             {

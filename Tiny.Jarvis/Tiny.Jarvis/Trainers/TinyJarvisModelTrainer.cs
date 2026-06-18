@@ -14,7 +14,7 @@ namespace Tiny.Jarvis.Training.Trainers;
 
 public static class TinyJarvisModelTrainer
 {
-    public static (TinyJarvisModel, Either<ITokenizer<byte[]>, ITokenizer<string>>) Train(IEnumerable<string> docs, TinyJarvisHyperParameters hyperParams)
+    public static (TinyJarvisModel, Either<ITokenizer<byte[]>, ITokenizer<string>>) Train(IEnumerable<string> trainingDocuments, TinyJarvisHyperParameters hyperParams)
     {
         // metrics
         var watch = System.Diagnostics.Stopwatch.StartNew();
@@ -33,7 +33,7 @@ public static class TinyJarvisModelTrainer
         var totalNumberOfSteps = hyperParams.MaxNumberOfSteps;
         var maxGradNorm = hyperParams.MaxGradNorm;
         var startTime = DateTime.UtcNow;
-        var docList = docs.ToList();
+        var trainingDocList = trainingDocuments.ToList();
 
         // ── Dataset and Tokenizer ────────────────────────────────
         Either<ITokenizer<byte[]>, ITokenizer<string>> tokenizerContainer;
@@ -50,7 +50,7 @@ public static class TinyJarvisModelTrainer
         else
         {
             if (tokenizerStrategy == TokenizerStrategy.ByteLevelBPE)
-                tokenizerContainer = new Either<ITokenizer<byte[]>, ITokenizer<string>>(TokenizerGenerator.GetTokenizer<byte[]>(tokenizerStrategy, docs, vocabularySize, numOfMerges));
+                tokenizerContainer = new Either<ITokenizer<byte[]>, ITokenizer<string>>(TokenizerGenerator.GetTokenizer<byte[]>(tokenizerStrategy, trainingDocList, vocabularySize, numOfMerges));
 
             else switch (tokenizerStrategy)
             {
@@ -59,13 +59,13 @@ public static class TinyJarvisModelTrainer
                     break;
 
                 default:
-                    tokenizerContainer = new Either<ITokenizer<byte[]>, ITokenizer<string>>(TokenizerGenerator.GetTokenizer<string>(tokenizerStrategy, docList, vocabularySize, numOfMerges));
+                    tokenizerContainer = new Either<ITokenizer<byte[]>, ITokenizer<string>>(TokenizerGenerator.GetTokenizer<string>(tokenizerStrategy, trainingDocList, vocabularySize, numOfMerges));
                     break;
             }
         }
 
         var existingVocabularySize = tokenizerContainer.IsLeft ? tokenizerContainer.Left.VocabSize : tokenizerContainer.Right.VocabSize;
-        Console.WriteLine($"num docs: {docList.Count}");
+        Console.WriteLine($"num docs: {trainingDocList.Count}");
         Console.WriteLine($"vocab size: {existingVocabularySize}");
 
         Console.WriteLine($"Training Start Time: {startTime}");
@@ -126,12 +126,12 @@ public static class TinyJarvisModelTrainer
         // the optimizer keeps track of the steps so we can carry on from that step in the loop
         for (var step = optimizer.CurrentStep; step < totalNumberOfSteps; step++)
         {
-            var doc = docList[(step % docList.Count)];
+            var trainingDocument = trainingDocList[(step % trainingDocList.Count)];
 
             // the LLM will know that all sequences start with BOS and end with EOS after training, or should.
             var tokens = new List<int> { bos }; // add bos token at the beginning of the sequence to mark the start
 
-            tokens.AddRange(tokenizerContainer.IsLeft ? tokenizerContainer.Left.Encode(doc) : tokenizerContainer.Right.Encode(doc));
+            tokens.AddRange(tokenizerContainer.IsLeft ? tokenizerContainer.Left.Encode(trainingDocument) : tokenizerContainer.Right.Encode(trainingDocument));
 
             tokens.Add(eos); // mark the end of the sequence
 
@@ -182,7 +182,7 @@ public static class TinyJarvisModelTrainer
             {
                 Console.Write($"\rTraining: {percentage:F2}% complete  | ");
                 Console.WriteLine(
-                    $"step: {step + 1,5} / {totalNumberOfSteps,5} | loss {loss.Data:F4} | avg {avgLoss:F4}"
+                    $"step: {step + 1,5} / {totalNumberOfSteps,5} | loss {loss.Data:F4} | avg {avgLoss:F4} | time: {DateTime.UtcNow}"
                 );
             }
 
@@ -210,7 +210,7 @@ public static class TinyJarvisModelTrainer
             if ((step + 1) % 500 == 0)
             {
                 Console.WriteLine(Environment.NewLine);
-                Console.WriteLine("\n--- Testing generation ---");
+                Console.WriteLine($"\n--- Testing generation at {DateTime.UtcNow} ---");
 
                 var testPrompt = "user: hello assistant:";
                 var encodedPromptIds = (tokenizerContainer.IsLeft ? tokenizerContainer.Left.Encode(testPrompt) : tokenizerContainer.Right.Encode(testPrompt)).ToList();

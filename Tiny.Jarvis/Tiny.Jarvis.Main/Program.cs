@@ -23,22 +23,30 @@ void BeginChat()
     var pathToModelSavedRuns = Path.GetFullPath(Path.Combine(savedRunsDir, "models"));
     var pathToTokenizerSavedRuns = Path.GetFullPath(Path.Combine(savedRunsDir, "tokenizers"));
     var pathToOptimizerSavedRuns = Path.GetFullPath(Path.Combine(savedRunsDir, "optimizers"));
-
+    var fileStaveTimestamp = DateTime.UtcNow;
     var random = new Random(42);
+
+    var specialName = GetModelOptionalSpecialName();
+
+    if (!Directory.Exists(pathToModelSavedRuns) || !Directory.Exists(pathToTokenizerSavedRuns) || !Directory.Exists(pathToOptimizerSavedRuns))
+    {
+        throw new ArgumentException("directories don't exist.");
+    }
+
     var hyperParams = new TinyJarvisHyperParameters
     {
-        TokenizerStrategy = TokenizerStrategy.ByteLevelBPE,
+        TokenizerStrategy = TokenizerStrategy.Chars,
         OptimizerStrategy = OptimizerStrategy.Adam,
         EmbeddingSize = 64,
         MaxSequenceLength = 42,
         LearningRate = 0.0003,
         NumOfMerges = 200,
         VocabularySize = 600,
-        MaxNumberOfSteps = 25000,
+        MaxNumberOfSteps = 10000,
         MaxGradNorm = 1.0,
-        SaveModelFile = GetUniqueFileNameWithTimestamp(pathToModelSavedRuns, "model-run", "bin"),
-        SaveOptimizerFile = GetUniqueFileNameWithTimestamp(pathToOptimizerSavedRuns, "optimizer-run", "bin"),
-        SaveTokenizerFile = GetUniqueFileNameWithTimestamp(pathToModelSavedRuns, "tokenizer-run", "json")
+        SaveModelFile = GetUniqueFileNameWithTimestamp(pathToModelSavedRuns, "model-run", "bin", specialName, fileStaveTimestamp),
+        SaveOptimizerFile = GetUniqueFileNameWithTimestamp(pathToOptimizerSavedRuns, "optimizer-run", "bin", specialName, fileStaveTimestamp),
+        SaveTokenizerFile = GetUniqueFileNameWithTimestamp(pathToModelSavedRuns, "tokenizer-run", "json", specialName, fileStaveTimestamp)
     };
 
     //var geneticAlgorithm = CreateGeneticAlgorithm();
@@ -64,11 +72,11 @@ void BeginChat()
         Console.WriteLine(filePath);
 
     Console.WriteLine(Environment.NewLine);
-    var docs = GetDocs(filePaths, random);
+    var trainingDocuments = GetDocs(filePaths, random);
 
 
     // Train (or load) the model
-    var (_model, _tokenizer) = TinyJarvisModelTrainer.Train(docs, hyperParams);
+    var (_model, _tokenizer) = TinyJarvisModelTrainer.Train(trainingDocuments, hyperParams);
 
     // Now use the same model for chat
     Console.WriteLine("Training complete. Starting chat...");
@@ -79,10 +87,29 @@ void BeginChat()
     chat.Run();
 }
 
+string GetModelOptionalSpecialName()
+{
+    Console.WriteLine("New model?");
+    var response = Console.ReadLine();
+    Console.WriteLine(Environment.NewLine);
+
+    var specialName = "";
+    if (response == "y")
+    {
+        Console.Write("Special model name: ");
+        specialName = Console.ReadLine();
+        Console.WriteLine(Environment.NewLine);
+
+        if (string.IsNullOrWhiteSpace(specialName))
+            return GetModelOptionalSpecialName();   
+    }
+
+    return specialName;
+}
+
 string? LoadFromPreviousRun(string path, string item)
 {
     Console.WriteLine($"Load {item} which run? (select index)");
-
 
     var files = SelectFiles(path);
 
@@ -91,15 +118,16 @@ string? LoadFromPreviousRun(string path, string item)
     return files.FirstOrDefault();
 }
 
-string GetUniqueFileNameWithTimestamp(string directory, string baseName, string extension)
+string GetUniqueFileNameWithTimestamp(string directory, string baseName, string extension, string specialName, DateTime timestamp)
 {
     var safeBase = string.Concat(baseName.Split(Path.GetInvalidFileNameChars()));
 
     if (string.IsNullOrWhiteSpace(safeBase)) safeBase = "file";
 
-    var timestamp = DateTime.Now.ToString("yyyy-MM-dd_HH-mm-ss");
+    var timestampAndSpecialName = timestamp.ToString("yyyy-MM-dd_HH-mm-ss");
+    if (!string.IsNullOrWhiteSpace(specialName)) timestampAndSpecialName = $"{timestampAndSpecialName}_{specialName}";
 
-    return Path.Combine(directory, $"{safeBase}_{timestamp}.{extension}");
+    return Path.Combine(directory, $"{safeBase}_{timestampAndSpecialName}.{extension}");
 }
 
 TinyJarvisInteractiveGeneticAlgorithm<double> CreateGeneticAlgorithm(int populationSize = 30, int chromosomeLength = 3, int maxGenerations = 100)
