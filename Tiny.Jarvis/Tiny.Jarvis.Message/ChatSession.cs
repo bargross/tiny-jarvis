@@ -8,13 +8,11 @@ using Tiny.Jarvis.Training.ControlFlow;
 
 namespace Tiny.Jarvis.Message
 {
-    public class ChatSession<TGATopKPopulation, TGATempPopulation>( // temp and top-P match in types always
+    public class ChatSession( // temp and top-P match in types always
         TinyJarvisModel model, 
         Either<ITokenizer<byte[]>, ITokenizer<string>> tokenizerContainer, 
-        TinyJarvisInteractiveGeneticAlgorithm<TGATopKPopulation> topKGA, 
-        TinyJarvisInteractiveGeneticAlgorithm<TGATempPopulation> tempGA) 
-            where TGATopKPopulation: IComparable<TGATopKPopulation>
-            where TGATempPopulation : IComparable<TGATempPopulation>
+        TinyJarvisInteractiveGeneticAlgorithm<int> topKGA, 
+        TinyJarvisInteractiveGeneticAlgorithm<double> tempAndTopPGA) 
     {
         private readonly List<ConversationExchange> _history = new();
 
@@ -74,12 +72,12 @@ namespace Tiny.Jarvis.Message
 
                 // start the GA and run
                 var topKBestChromosome = topKGA.Run();
-                var tempBestChromosome = tempGA.Run();
+                var tempBestChromosome = tempAndTopPGA.Run();
 
                 // Decode the best parameters
-                var bestTopK = GenericOps.ConvertTo<TGATopKPopulation, int>(topKBestChromosome[0]);
-                var bestTemperature = GenericOps.ConvertTo<TGATempPopulation, double>(tempBestChromosome[1]);
-                var bestTopP = GenericOps.ConvertTo<TGATempPopulation, double>(tempBestChromosome[2]); // still double
+                var bestTopK = topKBestChromosome.Min() + topKBestChromosome.Max() / 2;
+                var bestTemperature = tempBestChromosome[1];
+                var bestTopP = tempBestChromosome[2]; // still double
 
                 // manually set
                 //var bestTopK = 20;

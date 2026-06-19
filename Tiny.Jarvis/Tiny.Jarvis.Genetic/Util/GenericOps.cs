@@ -17,6 +17,18 @@ namespace Tiny.Jarvis.Genetic.Util
             };
         }
 
+        public static (TPopulation min, TPopulation max) GetGeneMinMaxValues<TPopulation>()
+        {
+            var populationType = typeof(TPopulation);
+            if (populationType == typeof(int)) return (ConvertToGenericPopValue<TPopulation, int>(1), ConvertToGenericPopValue<TPopulation, int>(100));
+            if (populationType == typeof(long)) return (ConvertToGenericPopValue<TPopulation, long>(1), ConvertToGenericPopValue<TPopulation, long>(100));
+            if (populationType == typeof(float)) return (ConvertToGenericPopValue<TPopulation, float>(0.1f), ConvertToGenericPopValue<TPopulation, float>(0.9f));
+            if (populationType == typeof(double)) return (ConvertToGenericPopValue<TPopulation, double>(0.1), ConvertToGenericPopValue<TPopulation, double>(0.9));
+            if (populationType == typeof(decimal)) return (ConvertToGenericPopValue<TPopulation, decimal>(0.1m), ConvertToGenericPopValue<TPopulation, decimal>(0.9m));
+
+            throw new ArgumentException("Uknown population type");
+        }
+
         public static TResult ConvertTo<TPopulation, TResult>(TPopulation value)
         {
             if (typeof(TPopulation) != typeof(TResult)) throw new ArgumentException("Types do not match!");
@@ -44,7 +56,6 @@ namespace Tiny.Jarvis.Genetic.Util
             TPopulation SumDecimal(TPopulation a, TPopulation b) => (TPopulation)(object)((decimal)(object)valA + (decimal)(object)valB);
             TPopulation SumFloat(TPopulation a, TPopulation b) => (TPopulation)(object)((float)(object)valA + (float)(object)valB);
 
-
             TPopulation SubtractInt(TPopulation a, TPopulation b) => (TPopulation)(object)((int)(object)valA - (int)(object)valB);
             TPopulation SubtractLong(TPopulation a, TPopulation b) => (TPopulation)(object)((long)(object)valA - (long)(object)valB);
             TPopulation SubtractDouble(TPopulation a, TPopulation b) => (TPopulation)(object)((double)(object)valA - (double)(object)valB);
@@ -62,7 +73,6 @@ namespace Tiny.Jarvis.Genetic.Util
             TPopulation MultiplyDouble(TPopulation a, TPopulation b) => (TPopulation)(object)((double)(object)valA * (double)(object)valB);
             TPopulation MultiplyDecimal(TPopulation a, TPopulation b) => (TPopulation)(object)((decimal)(object)valA * (decimal)(object)valB);
             TPopulation MultiplyFloat(TPopulation a, TPopulation b) => (TPopulation)(object)((float)(object)valA * (float)(object)valB);
-
 
             TPopulation SumByType(TPopulation valA, TPopulation valB)
             {
