@@ -5,7 +5,8 @@ using Tiny.Jarvis.Enums;
 using Tiny.Jarvis.Genetic;
 using Tiny.Jarvis.Genetic.Crossover;
 using Tiny.Jarvis.Genetic.Models;
-using Tiny.Jarvis.Message.Prompt;
+using Tiny.Jarvis.Genetic.Util;
+using Tiny.Jarvis.Message;
 using Tiny.Jarvis.Training.Enums;
 using Tiny.Jarvis.Training.Models;
 using Tiny.Jarvis.Training.Trainers;
@@ -84,7 +85,7 @@ void BeginChat()
     Console.WriteLine("Training complete. Starting chat...");
     Console.WriteLine(Environment.NewLine);
 
-    var chat = new ChatSession<double>(_model, _tokenizer, CreateGeneticAlgorithm<double>());
+    var chat = new ChatSession(_model, _tokenizer, CreateGeneticAlgorithm<int>(), CreateGeneticAlgorithm<double>());
 
     chat.Run();
 }
@@ -163,7 +164,7 @@ string GetUniqueFileNameWithTimestamp(string directory, string baseName, string 
     return Path.Combine(directory, $"{safeBase}_{timestampAndSpecialName}.{extension}");
 }
 
-TinyJarvisInteractiveGeneticAlgorithm<double> CreateGeneticAlgorithm<TPopulation>(int populationSize = 30, int chromosomeLength = 3, int maxGenerations = 100)
+TinyJarvisInteractiveGeneticAlgorithm<TPopulation> CreateGeneticAlgorithm<TPopulation>(int populationSize = 30, int chromosomeLength = 3, int maxGenerations = 100) where TPopulation: IComparable<TPopulation>
 {
     var crossovers = new Dictionary<CrossoverType, ICrossover<TPopulation>>
     {
@@ -172,14 +173,16 @@ TinyJarvisInteractiveGeneticAlgorithm<double> CreateGeneticAlgorithm<TPopulation
         { CrossoverType.Coexistence, new CoexistenceCrossover<TPopulation>() }
     };
 
+    var (minGeneValue, maxGeneValue) = GenericOps.GetGeneMinMaxValues<TPopulation>();
+
     // Instantiate the GA engine
-    return new TinyJarvisInteractiveGeneticAlgorithm<double>(crossovers)
+    return new TinyJarvisInteractiveGeneticAlgorithm<TPopulation>(crossovers)
     {
         CrossoverType = CrossoverType.Coexistence,   // can be changed
         CrossoverProbability = 0.8,
         MutationProbability = 0.1,
-        MinGeneValue = 1,
-        MaxGeneValue = 100,
+        MinGeneValue = minGeneValue,
+        MaxGeneValue = maxGeneValue,
         EliteCount = 2,
         PopulationSize = populationSize,
         ChromosomeLength = chromosomeLength,
@@ -188,18 +191,45 @@ TinyJarvisInteractiveGeneticAlgorithm<double> CreateGeneticAlgorithm<TPopulation
         // Fitness function: decode genes and compute a performance metric
         FitnessFunction = (chromosome) =>
         {
+            TPopulation GetCoherence()
+            {
+                var chromosomeType = typeof(TPopulation);
+                double? result;
+                if (chromosomeType == typeof(int))
+                {
+                    result = (double)(0.5 * Math.Log(GenericOps.ConvertTo<TPopulation, int>(chromosome[0])));
+                }
+
+                if (chromosomeType == typeof(long))
+                {
+                    result = (0.5 * Math.Log(GenericOps.ConvertTo<TPopulation, long>(chromosome[0])));
+                }
+
+                result = chromosome switch
+                {
+                    
+                    float => 0.3 * GenericOps.ConvertTo<TPopulation, float>(chromosome[0]) + 0.2 * GenericOps.ConvertTo<TPopulation, float>(chromosome[1]),
+                    double => 0.3 * GenericOps.ConvertTo<TPopulation, double>(chromosome[0]) + 0.2 * GenericOps.ConvertTo<TPopulation, double>(chromosome[1]),
+                    decimal => (double)(0.3m * GenericOps.ConvertTo<TPopulation, decimal>(chromosome[0]) + 0.2m * GenericOps.ConvertTo<TPopulation, decimal>(chromosome[1]))
+                };
+
+                return GenericOps.ConvertToGenericPopValue<TPopulation, double>(result.Value);
+            }
+
             var topK = chromosome[0];
-            var temperature = chromosome[1] / 100.0;
-            var topP = chromosome[2] / 100.0;
+            //var temperature = chromosome[1] / 100.0;
+            //var topP = chromosome[2] / 100.0;
 
             // Simulate model evaluation – replace with real evaluation
             // Higher fitness is better.
-            var coherence = 0.5 * Math.Log(topK + 1) + 0.3 * temperature + 0.2 * topP;
+            //var coherence = 0.5 * Math.Log(topK + 1) + 0.3 * temperature + 0.2 * topP;
+            var coherence = GetCoherence();
 
             // Add some noise to avoid trivial solution
-            var fitness = coherence + new Random().NextDouble() * 0.1;
+            var coherenceAndRandom = GenericOps.PerformMathematicalOperation(coherence, GenericOps.GetNextByType(new Random(), minGeneValue, maxGeneValue), Tiny.Jarvis.Genetic.Enums.MathOperation.Addition);
+            var fitness = GenericOps.PerformMathematicalOperation(coherenceAndRandom, GenericOps.ConvertToGenericPopValue<TPopulation, double>(0.1), Tiny.Jarvis.Genetic.Enums.MathOperation.Multiplication);
 
-            return fitness;
+            return GenericOps.ConvertTo<TPopulation, double>(fitness);
         },
 
         // Termination condition: stop after 100 generations or when best fitness > 0.95
