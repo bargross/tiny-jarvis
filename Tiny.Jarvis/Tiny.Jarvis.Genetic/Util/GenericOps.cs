@@ -118,9 +118,10 @@ namespace Tiny.Jarvis.Genetic.Util
 
             return op switch
             {
-                MathOperation.Sum => SumByType(valA, valB),
-                MathOperation.Subtract => SubtractByType(valA, valB),
-                MathOperation.Division => DivideByType(valA, valB)
+                MathOperation.Addition => SumByType(valA, valB),
+                MathOperation.Subtraction => SubtractByType(valA, valB),
+                MathOperation.Division => DivideByType(valA, valB),
+                MathOperation.Multiplication => MultiplyByType(valA, valB)
             };
         }
     }

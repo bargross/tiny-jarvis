@@ -7,12 +7,12 @@
         /// <summary>
         /// Copies source to destination if roulette is within [0, threshold].
         /// </summary>
-        void CopyIfInRange(int[] source, int[] destination, int roulette, int threshold);
+        //void CopyIfInRange(int[] source, int[] destination, int roulette, int threshold);
 
         /// <summary>
         /// Overload: copies if roulette is within [0, sound].
         /// </summary>
-        void CopyIfInRange(int[] source, int[] destination, long sound, int roulette);
+        //void CopyIfInRange(int[] source, int[] destination, long sound, int roulette);
 
         /// <summary>
         /// Ensures that a second roulette value is not simultaneously inside [sound1, sound2]
@@ -23,6 +23,6 @@
         /// <param name="min">Minimum inclusive bound (sound1).</param>
         /// <param name="max">Maximum inclusive bound (sound2).</param>
         /// <returns>The adjusted (or original) second roulette value.</returns>
-        int EnsureSecondRouletteOutOfRange(int firstRoulette, int secondRoulette, int min, int max, Random random);
+        //int EnsureSecondRouletteOutOfRange(int firstRoulette, int secondRoulette, int min, int max, Random random);
     }
 }
