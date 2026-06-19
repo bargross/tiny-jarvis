@@ -119,9 +119,9 @@ public static class TinyJarvisModelTrainer
         var lastMilestoneLoss = 0.0;
 
         // Reusable buffers for Backward
-        var topo = new List<Value>();
-        var visited = new HashSet<Value>();
-        var backwardStack = new Stack<(Value, int)>();
+        var topo = new List<Scalar>();
+        var visited = new HashSet<Scalar>();
+        var backwardStack = new Stack<(Scalar, int)>();
 
         var areLoadedFilePathsNotPopulated = new string[] { hyperParams.LoadModelFile, hyperParams.LoadOptimizerFile, hyperParams.LoadTokenizerFile }.All(string.IsNullOrWhiteSpace);
 
@@ -152,7 +152,7 @@ public static class TinyJarvisModelTrainer
             var keys = model.CreateKvCache();
             var values = model.CreateKvCache();
 
-            var loss = new Value(0);
+            var loss = new Scalar(0);
 
             for (var posId = 0; posId < tokenCount; posId++)
             {

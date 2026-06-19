@@ -8,7 +8,7 @@ namespace Tiny.Jarvis.Optimisers
     /// </summary>
     public class SGDMomentumOptimiser: IOptimizer
     {
-        private List<Value> _parameters;
+        private List<Scalar> _parameters;
         private readonly double _learningRate;
         private readonly double _momentum;
         private readonly double _weightDecay;
@@ -25,7 +25,7 @@ namespace Tiny.Jarvis.Optimisers
         /// <param name="momentum">Momentum factor (e.g., 0.9).</param>
         /// <param name="weightDecay">L2 regularisation coefficient (e.g., 0.0001). Set to 0 to disable.</param>
         public SGDMomentumOptimiser(
-            IEnumerable<Value> parameters,
+            IEnumerable<Scalar> parameters,
             double learningRate = 0.001,
             double momentum = 0.9,
             double weightDecay = 0.0)
@@ -44,7 +44,7 @@ namespace Tiny.Jarvis.Optimisers
             double momentum = 0.9,
             double weightDecay = 0.0)
         {
-            _parameters = new List<Value>();
+            _parameters = new List<Scalar>();
             _velocities = velocities;
             _learningRate = learningRate;
             _momentum = momentum;
@@ -82,6 +82,6 @@ namespace Tiny.Jarvis.Optimisers
 
         public OptimizerState GetState() => new OptimizerState { Step = _step, Velocities = _velocities };
 
-        public void SetParameters(List<Value> parameters) => _parameters.AddRange(parameters);
+        public void SetParameters(List<Scalar> parameters) => _parameters.AddRange(parameters);
     }
 }

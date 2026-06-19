@@ -10,10 +10,10 @@ namespace Tiny.Jarvis.Training.Util
         /// <summary>
         /// Matrix-vector multiply. Each row of weights is multiplied element‑wise with input and summed.
         /// </summary>
-        public static List<Value> Linear(List<Value> input, Value[][] weights) =>
+        public static List<Scalar> Linear(List<Scalar> input, Scalar[][] weights) =>
             [.. weights.SelectRow(row => Dot(row, input))];
 
-        public static List<Value> Softmax(List<Value> logits, bool useGpu = false)
+        public static List<Scalar> Softmax(List<Scalar> logits, bool useGpu = false)
         {
             if (useGpu && GpuSoftmax.IsInitialized)
                 return GpuSoftmax.Softmax(logits);
@@ -24,16 +24,16 @@ namespace Tiny.Jarvis.Training.Util
         /// <summary>
         /// Converts raw logits into a probability distribution using softmax.
         /// </summary>
-        public static List<Value> SoftmaxCpu(List<Value> logits)
+        public static List<Scalar> SoftmaxCpu(List<Scalar> logits)
         {
             if (logits == null || logits.Count == 0)
-                return new List<Value>();
+                return new List<Scalar>();
 
             var maxLogit = logits.Max(value => value.Data);
             var exponentials = logits.Select(value => (value - maxLogit).Exp()).ToList();
-            var sumOfExponentials = new Value(0);
+            var sumOfExponentials = new Scalar(0);
 
-            foreach (Value exponential in exponentials)
+            foreach (Scalar exponential in exponentials)
                 sumOfExponentials += exponential;
 
             return exponentials
@@ -46,11 +46,11 @@ namespace Tiny.Jarvis.Training.Util
         /// Uses SIMD (Vector<double>) for fast numeric computation, but still records
         /// the full computation graph for backpropagation.
         /// </summary>
-        public static Value Dot(IEnumerable<Value> leftSequence, IEnumerable<Value> rightSequence)
+        public static Scalar Dot(IEnumerable<Scalar> leftSequence, IEnumerable<Scalar> rightSequence)
         {
             // Materialise to arrays for indexed access and SIMD
-            var leftValues = leftSequence as Value[] ?? leftSequence.ToArray();
-            var rightValues = rightSequence as Value[] ?? rightSequence.ToArray();
+            var leftValues = leftSequence as Scalar[] ?? leftSequence.ToArray();
+            var rightValues = rightSequence as Scalar[] ?? rightSequence.ToArray();
 
             int length = leftValues.Length;
 
@@ -93,7 +93,7 @@ namespace Tiny.Jarvis.Training.Util
             }
 
             // Return a single Value node that knows how to backpropagate
-            return new Value(dotProduct, allInputs, localGradients);
+            return new Scalar(dotProduct, allInputs, localGradients);
         }
 
         /// <summary>
@@ -112,14 +112,14 @@ namespace Tiny.Jarvis.Training.Util
         /// <summary>
         /// RMSNorm: rescales a vector so its root‑mean‑square is close to 1. Keeps activations stable.
         /// </summary>
-        public static List<Value> RmsNorm(List<Value> activations)
+        public static List<Scalar> RmsNorm(List<Scalar> activations)
         {
-            var sumOfSquares = new Value(0);
-            foreach (Value activation in activations)
+            var sumOfSquares = new Scalar(0);
+            foreach (Scalar activation in activations)
                 sumOfSquares += activation * activation;
 
-            Value meanSquare = sumOfSquares / activations.Count;
-            Value scale = (meanSquare + 1e-5).Pow(-0.5);
+            Scalar meanSquare = sumOfSquares / activations.Count;
+            Scalar scale = (meanSquare + 1e-5).Pow(-0.5);
 
             return activations.Select(activation => activation * scale).ToList();
         }
@@ -127,14 +127,14 @@ namespace Tiny.Jarvis.Training.Util
         /// <summary>
         /// In‑place temperature scaling of logits.
         /// </summary>
-        public static void ApplyTemperature(List<Value> logits, double temperature)
+        public static void ApplyTemperature(List<Scalar> logits, double temperature)
         {
             if (Math.Abs(temperature - 1.0) > 1e-8)
                 for (var index = 0; index < logits.Count; index++)
                     logits[index] /= temperature;   // Divides Value by double – works if operator/ is defined
         }
 
-        public static Value CrossEntropyLoss(List<Value> logits, int nextTokenId)
+        public static Scalar CrossEntropyLoss(List<Scalar> logits, int nextTokenId)
         {
             // Find the maximum logit for numerical stability (prevents overflow in exp)
             var maxLogit = logits.Max(v => v.Data);
@@ -165,7 +165,7 @@ namespace Tiny.Jarvis.Training.Util
                 localGradients[i] = softmaxProbabilities[i] - (i == nextTokenId ? 1.0 : 0.0);
 
             // Return a single Value node that encapsulates the loss and its local gradients
-            return new Value(lossValue, logits.ToArray(), localGradients);
+            return new Scalar(lossValue, logits.ToArray(), localGradients);
         }
     }
 }

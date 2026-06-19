@@ -59,7 +59,7 @@ namespace Tiny.Jarvis.Training.Kernel
             }
         }
 
-        public static List<Value> Softmax(List<Value> logits)
+        public static List<Scalar> Softmax(List<Scalar> logits)
         {
             if (_accelerator == null || _softmaxKernel == null)
                 throw new InvalidOperationException("GPU not initialized");
@@ -77,7 +77,7 @@ namespace Tiny.Jarvis.Training.Kernel
 
             // Copy result back to CPU
             var resultArray = bufferOutput.GetAsArray1D();
-            return resultArray.Select(f => new Value(f)).ToList();
+            return resultArray.Select(f => new Scalar(f)).ToList();
         }
 
         public static void Dispose()

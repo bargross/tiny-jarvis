@@ -6,7 +6,7 @@ namespace Tiny.Jarvis.Training.Optimization
     {
         int CurrentStep { get; }
         OptimizerState GetState();
-        void SetParameters(List<Value> parameters);
+        void SetParameters(List<Scalar> parameters);
         void ZeroGrad(); 
         void Step(int step);
     }
