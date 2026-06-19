@@ -102,9 +102,9 @@ public static class TinyJarvisModelTrainer
         var optimizer = null as IOptimizer;
         if (hyperParams.LoadTokenizerFile != null)
         {
-            optimizer.SetParameters(model.Parameters.ToList());
+            optimizer = OptimizerSerializer.Load(hyperParams.LoadOptimizerFile, optimizerStrategy, learningRate, totalNumberOfSteps, maxGradNorm, momentum, weightDecay);
 
-            optimizer = OptimizerSerializer.Load(hyperParams.LoadTokenizerFile, optimizerStrategy, learningRate, totalNumberOfSteps, maxGradNorm, momentum, weightDecay);
+            optimizer.SetParameters(model.Parameters.ToList());
         }
         else optimizer = OptimizerGenerator.GetOptimizer(optimizerStrategy, model.Parameters, learningRate, totalNumberOfSteps, momentum, weightDecay, maxGradNorm);
         
@@ -122,6 +122,15 @@ public static class TinyJarvisModelTrainer
         var topo = new List<Value>();
         var visited = new HashSet<Value>();
         var backwardStack = new Stack<(Value, int)>();
+
+        var areLoadedFilePathsNotPopulated = new string[] { hyperParams.LoadModelFile, hyperParams.LoadOptimizerFile, hyperParams.LoadTokenizerFile }.All(string.IsNullOrWhiteSpace);
+
+        if (hyperParams.LoadedFromPreviousRun && !areLoadedFilePathsNotPopulated)
+        {
+            hyperParams.SaveModelFile = hyperParams.LoadModelFile;
+            hyperParams.SaveOptimizerFile = hyperParams.LoadOptimizerFile;
+            hyperParams.SaveTokenizerFile = hyperParams.LoadTokenizerFile;
+        }
 
         // the optimizer keeps track of the steps so we can carry on from that step in the loop
         for (var step = optimizer.CurrentStep; step < totalNumberOfSteps; step++)
@@ -229,6 +238,33 @@ public static class TinyJarvisModelTrainer
         }
 
         watch.Stop();
+
+        if (hyperParams.LoadedFromPreviousRun && !areLoadedFilePathsNotPopulated)
+        {
+            string AddToFileName(string original, string newPostFix)
+            {
+                var originalSplit = original.Split('\\');
+                var baseName = string.Join("\\", originalSplit.Take(original.Length - 1));
+
+                var fileNameSplit = originalSplit.Last().Split('.');
+                var name = fileNameSplit[0];
+                var format = fileNameSplit[1];
+
+                return Path.Combine(baseName, $"{name}-{newPostFix}.{format}");
+            }
+
+            var modelFileOld = hyperParams.LoadModelFile;
+            var optimizerFileOld = hyperParams.LoadOptimizerFile;
+            var tokenizerFileOld = hyperParams.LoadTokenizerFile;
+
+            var postFix = "completed";
+            hyperParams.SaveModelFile = AddToFileName(modelFileOld, postFix);
+            hyperParams.SaveOptimizerFile = AddToFileName(modelFileOld, postFix);
+            hyperParams.SaveTokenizerFile = AddToFileName(modelFileOld, postFix);
+
+            foreach (var oldFile in new string[] { modelFileOld, optimizerFileOld, tokenizerFileOld })
+                File.Delete(oldFile);
+        }
 
         ModelSerializer.Save(model, hyperParams);
 

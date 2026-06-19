@@ -2,6 +2,6 @@
 {
     public interface IPopulationInitializer<IPopulationType>
     {
-        void Initialize(IPopulationType[] array, int minGeneValue, int maxGeneValue, Random random);
+        void Initialize(IPopulationType[] array, IPopulationType? minGeneValue, IPopulationType? maxGeneValue, Random random);
     }
 }

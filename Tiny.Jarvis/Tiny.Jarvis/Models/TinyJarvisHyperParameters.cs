@@ -39,5 +39,6 @@ namespace Tiny.Jarvis.Training.Models
         public string? SaveModelFile { get; set; }
         public string? SaveTokenizerFile { get; set; }
         public string? SaveOptimizerFile { get; set; }
+        public bool LoadedFromPreviousRun { get; set; } = false;
     }
 }

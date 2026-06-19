@@ -1,4 +1,6 @@
-﻿using System.Text;
+﻿using System.Security.AccessControl;
+using System.Security.Principal;
+using System.Text;
 using Tiny.Jarvis.Enums;
 using Tiny.Jarvis.Genetic;
 using Tiny.Jarvis.Genetic.Crossover;
@@ -26,13 +28,12 @@ void BeginChat()
     var fileStaveTimestamp = DateTime.UtcNow;
     var random = new Random(42);
 
-    var specialName = GetModelOptionalSpecialName();
+    EnsureWritePermissionsOnWindows(pathToModelSavedRuns);
+    EnsureWritePermissionsOnWindows(pathToTokenizerSavedRuns);
+    EnsureWritePermissionsOnWindows(pathToOptimizerSavedRuns);
 
-    if (!Directory.Exists(pathToModelSavedRuns) || !Directory.Exists(pathToTokenizerSavedRuns) || !Directory.Exists(pathToOptimizerSavedRuns))
-    {
-        throw new ArgumentException("directories don't exist.");
-    }
-
+    var (isNewModel, specialName) = GetModelOptionalSpecialName();
+    
     var hyperParams = new TinyJarvisHyperParameters
     {
         TokenizerStrategy = TokenizerStrategy.Chars,
@@ -46,19 +47,20 @@ void BeginChat()
         MaxGradNorm = 1.0,
         SaveModelFile = GetUniqueFileNameWithTimestamp(pathToModelSavedRuns, "model-run", "bin", specialName, fileStaveTimestamp),
         SaveOptimizerFile = GetUniqueFileNameWithTimestamp(pathToOptimizerSavedRuns, "optimizer-run", "bin", specialName, fileStaveTimestamp),
-        SaveTokenizerFile = GetUniqueFileNameWithTimestamp(pathToModelSavedRuns, "tokenizer-run", "json", specialName, fileStaveTimestamp)
+        SaveTokenizerFile = GetUniqueFileNameWithTimestamp(pathToOptimizerSavedRuns, "tokenizer-run", "json", specialName, fileStaveTimestamp)
     };
 
-    //var geneticAlgorithm = CreateGeneticAlgorithm();
-
-    Console.WriteLine("Load from previous run? (y/n)");
-    var response = Console.ReadLine();
-
-    if (response == "y") 
+    if (!isNewModel)
     {
-        hyperParams.LoadModelFile = LoadFromPreviousRun(pathToModelSavedRuns, "model");
-        hyperParams.LoadTokenizerFile = LoadFromPreviousRun(pathToTokenizerSavedRuns, "tokenizer");
-        hyperParams.LoadOptimizerFile = LoadFromPreviousRun(pathToOptimizerSavedRuns, "optimizer");
+        var modelSaveFile = LoadFromPreviousRun(pathToModelSavedRuns, "model");
+        var tokenizerSaveFile = LoadFromPreviousRun(pathToTokenizerSavedRuns, "tokenizer");
+        var optimizerSaveFile = LoadFromPreviousRun(pathToOptimizerSavedRuns, "optimizer");
+
+        hyperParams.LoadModelFile = modelSaveFile;
+        hyperParams.LoadTokenizerFile = tokenizerSaveFile;
+        hyperParams.LoadOptimizerFile = optimizerSaveFile;
+
+        hyperParams.LoadedFromPreviousRun = true;
     }
 
     //var vocabularySize = 64; // only for tokenizers other than Character
@@ -82,12 +84,43 @@ void BeginChat()
     Console.WriteLine("Training complete. Starting chat...");
     Console.WriteLine(Environment.NewLine);
 
-    var chat = new ChatSession(_model, _tokenizer, null);
+    var chat = new ChatSession<double>(_model, _tokenizer, CreateGeneticAlgorithm<double>());
 
     chat.Run();
 }
 
-string GetModelOptionalSpecialName()
+void EnsureWritePermissionsOnWindows(string directoryPath)
+{
+    if (!OperatingSystem.IsWindows())
+        return; // only applies to Windows
+
+    var dirInfo = new DirectoryInfo(directoryPath);
+    if (!dirInfo.Exists)
+    {
+        Directory.CreateDirectory(directoryPath);
+        dirInfo = new DirectoryInfo(directoryPath);
+    }
+
+    try
+    {
+        var security = dirInfo.GetAccessControl();
+        var currentUser = WindowsIdentity.GetCurrent().User;
+        security.AddAccessRule(new FileSystemAccessRule(
+            currentUser,
+            FileSystemRights.FullControl,
+            InheritanceFlags.ContainerInherit | InheritanceFlags.ObjectInherit,
+            PropagationFlags.None,
+            AccessControlType.Allow));
+        dirInfo.SetAccessControl(security);
+    }
+    catch (UnauthorizedAccessException)
+    {
+        // You may not have permission to modify ACLs; fall back to running as admin.
+        Console.WriteLine("Unable to modify folder permissions; run as administrator if needed.");
+    }
+}
+
+(bool isNewModel, string specialName) GetModelOptionalSpecialName()
 {
     Console.WriteLine("New model?");
     var response = Console.ReadLine();
@@ -104,14 +137,14 @@ string GetModelOptionalSpecialName()
             return GetModelOptionalSpecialName();   
     }
 
-    return specialName;
+    return (response == "y" ,specialName);
 }
 
 string? LoadFromPreviousRun(string path, string item)
 {
     Console.WriteLine($"Load {item} which run? (select index)");
 
-    var files = SelectFiles(path);
+    var files = SelectFiles(path, false);
 
     if (files.Count > 1) throw new ArgumentException("can only load 1 model at a time.");
 
@@ -130,13 +163,13 @@ string GetUniqueFileNameWithTimestamp(string directory, string baseName, string 
     return Path.Combine(directory, $"{safeBase}_{timestampAndSpecialName}.{extension}");
 }
 
-TinyJarvisInteractiveGeneticAlgorithm<double> CreateGeneticAlgorithm(int populationSize = 30, int chromosomeLength = 3, int maxGenerations = 100)
+TinyJarvisInteractiveGeneticAlgorithm<double> CreateGeneticAlgorithm<TPopulation>(int populationSize = 30, int chromosomeLength = 3, int maxGenerations = 100)
 {
-    var crossovers = new Dictionary<CrossoverType, ICrossover>
+    var crossovers = new Dictionary<CrossoverType, ICrossover<TPopulation>>
     {
-        { CrossoverType.Average, new AverageCrossover() },
-        { CrossoverType.Internal, new InternalCrossover() },
-        { CrossoverType.Coexistence, new CoexistenceCrossover() }
+        { CrossoverType.Average, new AverageCrossover<TPopulation>() },
+        { CrossoverType.Internal, new InternalCrossover<TPopulation>() },
+        { CrossoverType.Coexistence, new CoexistenceCrossover<TPopulation>() }
     };
 
     // Instantiate the GA engine
@@ -256,7 +289,7 @@ string FindSolutionRoot()
     throw new DirectoryNotFoundException("Solution root not found.");
 }
 
-List<string> SelectFiles(string pathToDir)
+List<string> SelectFiles(string pathToDir, bool flexibleFetch = true)
 {
     var files = new List<string>();
     var filesAvailable = new DirectoryInfo(pathToDir)
@@ -277,23 +310,32 @@ List<string> SelectFiles(string pathToDir)
 
     for (var fileIndex = 0; fileIndex < filesAvailable.Length; fileIndex++)
         Console.WriteLine($"{fileIndex}. {filesAvailable[fileIndex].Split('\\').Last()}");
+    
+    Console.WriteLine(Environment.NewLine);
 
-    AddFile(pathToDir, files, filesAvailable);
+    if (!flexibleFetch)
+    {
+        AddFile(pathToDir, files, filesAvailable);
+
+        return files;
+    }
 
     var fetch = true;
     while(fetch)
     {
+        AddFile(pathToDir, files, filesAvailable);
 
         Console.WriteLine(Environment.NewLine);
         Console.Write($"Fetch Another (y/n): ");
-        var userResponseInput = Console.ReadLine()?.ToLower();
 
+        var userResponseInput = Console.ReadLine()?.ToLower();
         fetch = userResponseInput == "y" || userResponseInput == "yes";
 
-        if (fetch) AddFile(pathToDir, files, filesAvailable);
-
-        else break;
+        if (fetch)
+            for (var fileIndex = 0; fileIndex < filesAvailable.Length; fileIndex++)
+                Console.WriteLine($"{fileIndex}. {filesAvailable[fileIndex].Split('\\').Last()}");
     }
+
     Console.WriteLine(Environment.NewLine);
 
     return files;

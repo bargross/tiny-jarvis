@@ -2,7 +2,7 @@
 {
     public static class ParentComparer
     {
-        public static bool AreEqual<IPopulationType>(IPopulationType[] parentA, IPopulationType[] parentB) where IPopulationType: struct
+        public static bool AreEqual<IPopulationType>(IPopulationType[] parentA, IPopulationType[] parentB)
         {
             if (parentA.Length != parentB.Length) return false;
             for (var geneIndex = 0; geneIndex < parentA.Length; geneIndex++)

@@ -1,10 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-
-namespace Tiny.Jarvis.Genetic.Mutate
+﻿namespace Tiny.Jarvis.Genetic.Mutate
 {
-    public interface IMutator
+    public interface IMutator<TPopulation>
     {
         /// <summary>
         /// Mutates a chromosome in place by randomly changing each gene with a given probability.
@@ -13,6 +9,6 @@ namespace Tiny.Jarvis.Genetic.Mutate
         /// <param name="mutationProbability">Probability (0.0–1.0) that each gene is mutated.</param>
         /// <param name="minGeneValue">Minimum allowed integer value (inclusive).</param>
         /// <param name="maxGeneValue">Maximum allowed integer value (inclusive).</param>
-        void Mutate(int[] chromosome, double mutationProbability, int minGeneValue, int maxGeneValue, Random random);
+        void Mutate(TPopulation[] chromosome, double mutationProbability, TPopulation minGeneValue, TPopulation maxGeneValue, Random random);
     }
 }

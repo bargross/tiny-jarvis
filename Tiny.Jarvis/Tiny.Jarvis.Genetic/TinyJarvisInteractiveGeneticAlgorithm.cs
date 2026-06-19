@@ -6,49 +6,49 @@ using Tiny.Jarvis.Genetic.Roulette;
 
 namespace Tiny.Jarvis.Genetic
 {
-    public class TinyJarvisInteractiveGeneticAlgorithm<IPopulationType> where IPopulationType: struct
+    public class TinyJarvisInteractiveGeneticAlgorithm<TPopulation> where TPopulation : IComparable<TPopulation>
     {
-        private readonly IReadOnlyDictionary<CrossoverType, ICrossover> _crossovers;
-        private readonly IMutator _mutator;
-        private readonly IPopulationInitializer<IPopulationType> _initializer;
+        private readonly IReadOnlyDictionary<CrossoverType, ICrossover<TPopulation>> _crossovers;
+        private readonly IMutator<TPopulation> _mutator;
+        private readonly IPopulationInitializer<TPopulation> _initializer;
         private readonly IRouletteSelector _roulette;
         private readonly Random _random;
 
         public CrossoverType CrossoverType { get; set; } = CrossoverType.Average;
         public double CrossoverProbability { get; set; } = 0.8;
         public double MutationProbability { get; set; } = 0.05;
-        public int MinGeneValue { get; set; } = 0;
-        public int MaxGeneValue { get; set; } = 100;
+        public TPopulation MinGeneValue { get; set; }
+        public TPopulation MaxGeneValue { get; set; }
         public int EliteCount { get; set; } = 1;
         public int PopulationSize { get; set; }
         public int ChromosomeLength { get; set; }
         public int MaxGenerations { get; set; }
 
         // Problem-specific delegates
-        public Func<IPopulationType[], double> FitnessFunction { get; set; } = null!;
-        public Func<int, double, IPopulationType[][], bool> TerminationCondition { get; set; } = (_, _, _) => false;
+        public Func<TPopulation[], double> FitnessFunction { get; set; } = null!;
+        public Func<int, double, TPopulation[][], bool> TerminationCondition { get; set; } = (_, _, _) => false;
 
         public TinyJarvisInteractiveGeneticAlgorithm(
-            IReadOnlyDictionary<CrossoverType, ICrossover> crossovers,
-            IMutator? mutator = null,
-            IPopulationInitializer<IPopulationType>? initializer = null,
+            IReadOnlyDictionary<CrossoverType, ICrossover<TPopulation>> crossovers,
+            IMutator<TPopulation>? mutator = null,
+            IPopulationInitializer<TPopulation>? initializer = null,
             IRouletteSelector? roulette = null,
             Random? random = null)
         {
             _crossovers = crossovers ?? throw new ArgumentNullException(nameof(crossovers));
-            _mutator = mutator ?? new StandardMutator();
-            _initializer = initializer ?? new RandomPopulationInitializer<IPopulationType>();
+            _mutator = mutator ?? new StandardMutator<TPopulation>();
+            _initializer = initializer ?? new RandomPopulationInitializer<TPopulation>();
             _roulette = roulette ?? new RouletteSelector();
             _random = random ?? Random.Shared;
         }
 
-        public int[] Run()
+        public TPopulation[] Run()
         {
             // Initialise population
-            var population = new IPopulationType[PopulationSize][];
+            var population = new TPopulation[PopulationSize][];
             for (var i = 0; i < PopulationSize; i++)
             {
-                population[i] = new IPopulationType[ChromosomeLength];
+                population[i] = new TPopulation[ChromosomeLength];
                 _initializer.Initialize(population[i], MinGeneValue, MaxGeneValue, _random);
             }
 
@@ -68,17 +68,17 @@ namespace Tiny.Jarvis.Genetic
                 // Best so far
                 var bestIndex = Array.IndexOf(fitness, fitness.Max());
                 var bestFitness = fitness[bestIndex];
-                var bestChromosome = (int[])population[bestIndex].Clone();
+                var bestChromosome = (TPopulation[])population[bestIndex].Clone();
 
                 // Termination
                 if (generation >= MaxGenerations || TerminationCondition(generation, bestFitness, population))
                     return bestChromosome;
 
                 // Next generation
-                var newPopulation = new IPopulationType[PopulationSize][];
+                var newPopulation = new TPopulation[PopulationSize][];
                 var eliteIndices = GetTopIndices(fitness, EliteCount);
                 for (var i = 0; i < EliteCount; i++)
-                    newPopulation[i] = (IPopulationType[])population[eliteIndices[i]].Clone();
+                    newPopulation[i] = (TPopulation[])population[eliteIndices[i]].Clone();
 
                 var newIdx = EliteCount;
                 var crossover = _crossovers[CrossoverType];
@@ -88,8 +88,8 @@ namespace Tiny.Jarvis.Genetic
                     var parentAIdx = _roulette.Select(fitness, totalFitness, _random);
                     var parentBIdx = _roulette.Select(fitness, totalFitness, _random);
 
-                    var childA = (int[])population[parentAIdx].Clone();
-                    var childB = (int[])population[parentBIdx].Clone();
+                    var childA = (TPopulation[])population[parentAIdx].Clone();
+                    var childB = (TPopulation[])population[parentBIdx].Clone();
 
                     if (_random.NextDouble() < CrossoverProbability)
                         crossover.Crossover(childA, childB, MutationProbability, MinGeneValue, MaxGeneValue, _random);
@@ -101,9 +101,9 @@ namespace Tiny.Jarvis.Genetic
                         _mutator.Mutate(childB, MutationProbability, MinGeneValue, MaxGeneValue, _random);
                     }
 
-                    newPopulation[newIdx++] = childA.Cast<IPopulationType>().ToArray();
+                    newPopulation[newIdx++] = childA.Cast<TPopulation>().ToArray();
                     if (newIdx < PopulationSize)
-                        newPopulation[newIdx++] = childB.Cast<IPopulationType>().ToArray();
+                        newPopulation[newIdx++] = childB.Cast<TPopulation>().ToArray();
                 }
 
                 population = newPopulation;

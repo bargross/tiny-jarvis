@@ -1,12 +1,20 @@
 ﻿using Tiny.Jarvis.Genetic;
+using Tiny.Jarvis.Genetic.Util;
 using Tiny.Jarvis.Message.Models;
+using Tiny.Jarvis.Message.Prompt;
 using Tiny.Jarvis.MLModels;
 using Tiny.Jarvis.Tokenization;
 using Tiny.Jarvis.Training.ControlFlow;
 
-namespace Tiny.Jarvis.Message.Prompt
+namespace Tiny.Jarvis.Message
 {
-    public class ChatSession(TinyJarvisModel model, Either<ITokenizer<byte[]>, ITokenizer<string>> tokenizerContainer, TinyJarvisInteractiveGeneticAlgorithm<double> geneticAlgorithm)
+    public class ChatSession<TGATopKPopulation, TGATempPopulation>( // temp and top-P match in types always
+        TinyJarvisModel model, 
+        Either<ITokenizer<byte[]>, ITokenizer<string>> tokenizerContainer, 
+        TinyJarvisInteractiveGeneticAlgorithm<TGATopKPopulation> topKGA, 
+        TinyJarvisInteractiveGeneticAlgorithm<TGATempPopulation> tempGA) 
+            where TGATopKPopulation: IComparable<TGATopKPopulation>
+            where TGATempPopulation : IComparable<TGATempPopulation>
     {
         private readonly List<ConversationExchange> _history = new();
 
@@ -65,17 +73,18 @@ namespace Tiny.Jarvis.Message.Prompt
                 //Console.WriteLine($"tokens before Generate is called: {string.Join(",", tokens)}"); // debug
 
                 // start the GA and run
-                //var bestChromosome = geneticAlgorithm.Run();
+                var topKBestChromosome = topKGA.Run();
+                var tempBestChromosome = tempGA.Run();
 
                 // Decode the best parameters
-                //var bestTopK = bestChromosome[0];
-                //var bestTemperature = bestChromosome[1] / 100.0;
-                //var bestTopP = bestChromosome[2] / 100.0;
+                var bestTopK = GenericOps.ConvertTo<TGATopKPopulation, int>(topKBestChromosome[0]);
+                var bestTemperature = GenericOps.ConvertTo<TGATempPopulation, double>(tempBestChromosome[1]);
+                var bestTopP = GenericOps.ConvertTo<TGATempPopulation, double>(tempBestChromosome[2]); // still double
 
                 // manually set
-                var bestTopK = 20;
-                var bestTemperature = 0.7;
-                var bestTopP = 0.8;
+                //var bestTopK = 20;
+                //var bestTemperature = 0.7;
+                //var bestTopP = 0.8;
 
                 var responseTokens = model.Generate(tokens, maxNewTokens: 100, temperature: bestTemperature, topK: bestTopK, topP: bestTopP);
 
