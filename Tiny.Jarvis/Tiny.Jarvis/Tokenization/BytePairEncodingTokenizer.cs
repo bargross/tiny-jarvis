@@ -2,30 +2,30 @@
 
 namespace Tiny.Jarvis.Tokenization
 {
-    public class BytePairEncodingTokenizer: ITokenizer
+    public class BytePairEncodingTokenizer: ITokenizer<string>
     {
         private readonly Dictionary<string, int> _identifierToToken;
         private readonly Dictionary<int, string> _tokenToIdentifier;
         private readonly List<(string Left, string Right)> _mergeRules;
-        private readonly int _unknownTokenIdentifier;
         private readonly string _unknownToken = "[UNK]";
         private readonly string _bosToken = "[BOS]";
         private readonly string _endOfSequenceToken = "[EOS]";
-
-
         private readonly int _vocabularySize;
+        private readonly int _unknownTokenIdentifier;
 
+        public Dictionary<string, int> IdentifierToToken => _identifierToToken;
         public int VocabSize => _vocabularySize;
         public int BOS { get; } // Beginning of Sequence token ID
         public int EOS { get; } // End of Sequence token ID
+        public int UnknownTokenId => _unknownTokenIdentifier;
 
-        public BytePairEncodingTokenizer(IEnumerable<string> docs, int unknownTokenIdentifier = -1, int numberOfMerges = 15)
+        public List<(string Left, string Right)>? MergeRules => _mergeRules;
+        public Dictionary<string, double>? TokenLogProbabilities => null;
+
+        public BytePairEncodingTokenizer(IEnumerable<string> trainingDocuments, int unknownTokenIdentifier = -1, int numberOfMerges = 15)
         {
-            // Combine all documents into one large text (or pass as enumerable)
-            string allText = string.Join("\n", docs);
-
             // Train BPE on the combined text (assuming the trainer can work on a single string)
-            var trainingResult = new BytePairEncodingTrainer().Train(allText, numberOfMerges);
+            var trainingResult = new BytePairEncodingTrainer().Train(trainingDocuments, numberOfMerges);
             // trainingResult should contain:
             //   - Vocabulary (HashSet<string>) of all subword tokens
             //   - MergeRules (List<(string,string)>)
@@ -54,6 +54,19 @@ namespace Tiny.Jarvis.Tokenization
             _tokenToIdentifier = tokenToIdentifier;
             _mergeRules = trainingResult.MergeRules; // or new List<(string,string)> if not provided
             _vocabularySize = _identifierToToken.Count;
+
+            _unknownTokenIdentifier = _identifierToToken[_unknownToken];
+        }
+
+        public BytePairEncodingTokenizer(List<(string Left, string Right)> mergeRules, Dictionary<string, int> identifierToToken, int unknownTokenIdentifier, int bOS, int eOS)
+        {
+            _mergeRules = mergeRules;
+            _tokenToIdentifier = identifierToToken.ToDictionary(x => x.Value, x => x.Key);
+            _identifierToToken = identifierToToken;
+            _unknownTokenIdentifier = unknownTokenIdentifier;
+            _vocabularySize = _identifierToToken.Count;
+            BOS = bOS;
+            EOS = eOS;
         }
 
         public IReadOnlyList<int> Encode(string text)

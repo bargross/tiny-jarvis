@@ -1,6 +1,6 @@
 namespace Tiny.Jarvis.Tokenization;
 
-public class CharacterTokenizer : ITokenizer
+public class CharacterTokenizer : ITokenizer<string>
 {
     private readonly Dictionary<int, string> _tokenToIdentifier; // ID -> character string
     private readonly Dictionary<string, int> _identifierToToken; // character string -> ID
@@ -9,9 +9,14 @@ public class CharacterTokenizer : ITokenizer
     private const string _bosToken = "[BOS]";  // not single token but works for now
     private const string _eosToken = "[EOS]";  // not single token but works for now
 
+    public Dictionary<string, int> IdentifierToToken => _identifierToToken;
     public int BOS { get; private set; }
     public int EOS { get; private set; }
     public int VocabSize { get; private set; }
+    public int UnknownTokenId => _unknownTokenIdentifier;
+
+    public List<(string Left, string Right)>? MergeRules => null;
+    public Dictionary<string, double>? TokenLogProbabilities => null;
 
     // Constructor using an explicit alphabet string (no training on docs)
     public CharacterTokenizer(string allowedChars)

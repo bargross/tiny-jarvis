@@ -1,8 +1,9 @@
 ﻿using Tiny.Jarvis.Tokenization.Trainers;
+using Tiny.Jarvis.Training.Util;
 
 namespace Tiny.Jarvis.Tokenization
 {
-    public class UnigramTokenizer: ITokenizer
+    public class UnigramTokenizer: ITokenizer<string>
     {
         private readonly Dictionary<string, double> _tokenLogProbabilities;
         private readonly Dictionary<int, string> _tokenToIdentifier;
@@ -15,9 +16,14 @@ namespace Tiny.Jarvis.Tokenization
         private const double _unknownTokenLogProbability = -100.0;
         private readonly int _vocabularySize;
 
+        public Dictionary<string, int> IdentifierToToken => _identifierToToken;
         public int VocabSize => _vocabularySize;
         public int BOS { get; } // Beginning of Sequence token ID
         public int EOS { get; } // End of Sequence token ID
+        public int UnknownTokenId => _unknownTokenIdentifier;
+
+        public List<(string Left, string Right)>? MergeRules => null;
+        public Dictionary<string, double>? TokenLogProbabilities => TokenLogProbabilities;
 
         public UnigramTokenizer(IEnumerable<string> docs, int targetVocabularySize = 20)
         {
@@ -59,10 +65,20 @@ namespace Tiny.Jarvis.Tokenization
             EOS = identifierToToken[_endOfSequenceToken];
         }
 
+        public UnigramTokenizer(Dictionary<string, double> tokenLogProbabilities, Dictionary<string, int> identifierToToken, int unknownTokenIdentifier, int bOS, int eOS)
+        {
+            _tokenLogProbabilities = tokenLogProbabilities;
+            _tokenToIdentifier = identifierToToken.ToDictionary(x => x.Value, x => x.Key);
+            _identifierToToken = identifierToToken;
+            _unknownTokenIdentifier = unknownTokenIdentifier;
+            _vocabularySize = _tokenLogProbabilities.Count;
+            BOS = bOS;
+            EOS = eOS;
+        }
+
         public IReadOnlyList<int> Encode(string text)
         {
-            return text
-                .Split(' ')
+            return Helpers.PreTokenize(text)
                 .SelectMany(word => FindBestSegmentation(word))
                 .Select(token => _identifierToToken.GetValueOrDefault(token, _unknownTokenIdentifier))
                 .ToList();
@@ -76,37 +92,53 @@ namespace Tiny.Jarvis.Tokenization
 
             // Unigram typically concatenates tokens; spaces are either separate tokens or implied.
             // We'll simply join them.
-            return string.Concat(tokens);
+            return string.Join(" ", tokens);
         }
 
         private IEnumerable<string> FindBestSegmentation(string word)
         {
-            // prefixes[pos] = (logProbability, tokenList)
-            var prefixes = new Dictionary<int, (double LogProbability, List<string> Tokens)>
-            {
-                [0] = (0.0, new List<string>())
-            };
+            var n = word.Length;
+            var bestScore = new double[n + 1];
+            var bestStart = new int[n + 1];
 
-            for (var end = 1; end <= word.Length; end++)
-            {
-                var candidates = from start in Enumerable.Range(0, end)
-                                 let token = word.Substring(start, end - start)
-                                 let logProb = prefixes[start].LogProbability + GetLogProbability(token)
-                                 select new { LogProbability = logProb, Tokens = prefixes[start].Tokens.Concat(new[] { token }).ToList() };
+            Array.Fill(bestScore, double.NegativeInfinity);
+            bestScore[0] = 0.0;
+            bestStart[0] = -1;
 
-                var best = candidates.OrderByDescending(c => c.LogProbability).FirstOrDefault();
-                if (best != null)
-                    prefixes[end] = (best.LogProbability, best.Tokens);
-                else
-                    prefixes[end] = (double.NegativeInfinity, new List<string>());
+            for (var end = 1; end <= n; end++)
+            {
+                for (var start = 0; start < end; start++)
+                {
+                    if (bestScore[start] == double.NegativeInfinity) continue;
+
+                    var token = word.Substring(start, end - start);
+                    var score = bestScore[start] + GetLogProbability(token);
+
+                    if (score > bestScore[end])
+                    {
+                        bestScore[end] = score;
+                        bestStart[end] = start;
+                    }
+                }
             }
 
-            return prefixes[word.Length].Tokens;
+            // Trace back
+            var tokens = new List<string>();
+            var pos = n;
+            while (pos > 0)
+            {
+                var start = bestStart[pos];
+
+                tokens.Add(word.Substring(start, pos - start));
+                pos = start;
+            }
+
+            tokens.Reverse();
+
+            return tokens;
         }
 
-        private double GetLogProbability(string token)
-        {
-            return _tokenLogProbabilities.GetValueOrDefault(token, _unknownTokenLogProbability);
-        }
+        private double GetLogProbability(string token) => _tokenLogProbabilities.GetValueOrDefault(token, _unknownTokenLogProbability);
+        
     }
 }

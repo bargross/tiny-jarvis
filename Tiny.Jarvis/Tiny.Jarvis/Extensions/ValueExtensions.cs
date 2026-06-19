@@ -1,4 +1,6 @@
-﻿using Tiny.Jarvis.Training.Models;
+﻿using System.Runtime.CompilerServices;
+using Tiny.Jarvis.Training.Models;
+using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace Tiny.Jarvis.Extensions
 {

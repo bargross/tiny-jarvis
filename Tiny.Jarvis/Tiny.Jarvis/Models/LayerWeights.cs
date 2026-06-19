@@ -1,6 +1,6 @@
 ﻿namespace Tiny.Jarvis.Training.Models
 {
-    internal class LayerWeights
+    public class LayerWeights
     {
         public Value[][] Query { get; set; }
         public Value[][] Key { get; set; }

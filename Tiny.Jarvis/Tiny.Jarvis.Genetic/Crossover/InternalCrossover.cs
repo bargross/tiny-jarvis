@@ -1,4 +1,5 @@
 ﻿using Tiny.Jarvis.Genetic.Helpers;
+using Tiny.Jarvis.Genetic.Util;
 
 namespace Tiny.Jarvis.Genetic.Crossover
 {
@@ -10,9 +11,9 @@ namespace Tiny.Jarvis.Genetic.Crossover
     /// causing the ranking mechanism to deem all individuals incapable (or all capable).
     /// To avoid premature convergence, a random strand swap and mutation have been added.
     /// </summary>
-    public class InternalCrossover : ICrossover
+    public class InternalCrossover<TPopulation> : ICrossover<TPopulation>
     {
-        public void Crossover(int[] parentA, int[] parentB, double mutationProbability, int minGeneValue, int maxGeneValue, Random random)
+        public void Crossover(TPopulation[] parentA, TPopulation[] parentB, double mutationProbability, TPopulation minGeneValue, TPopulation maxGeneValue, Random random)
         {
             if (parentA.Length != parentB.Length)
                 throw new ArgumentException("Parent arrays must have the same length.");
@@ -21,20 +22,23 @@ namespace Tiny.Jarvis.Genetic.Crossover
             var coexistanceCpoint = length / 2;  // original used a parameter; here we assume half the length
             var crossoverPoint = random.Next(coexistanceCpoint, length);
             var internalIndex = coexistanceCpoint - 1;
-            var container = new int[length];
+            var container = new TPopulation[length];
 
             // 1. Symmetric averaging on the first segment
             var reverseDistance = coexistanceCpoint - (coexistanceCpoint / 2);
             var linearDistance = coexistanceCpoint / 2;
+            var divisibleNumberOfParents = GenericOps.ConvertToGenericPopValue<TPopulation, int>(2);
 
             for (var i = 0; i < coexistanceCpoint && internalIndex >= 0; i++, internalIndex--)
             {
                 if (i <= linearDistance && internalIndex >= reverseDistance)
                 {
-                    var sumA = parentA[i] + parentA[internalIndex];
-                    var sumB = parentB[i] + parentB[internalIndex];
+                    var sumA = GenericOps.PerformMathematicalOperation(parentA[i], parentA[internalIndex], Enums.MathOperation.Addition);
+                    var sumB = GenericOps.PerformMathematicalOperation(parentB[i], parentB[internalIndex], Enums.MathOperation.Addition);
 
-                    container[i] = (sumA + sumB) / 2;
+                    var chromosomeSum = GenericOps.PerformMathematicalOperation(sumA, sumB, Enums.MathOperation.Addition);
+
+                    container[i] = GenericOps.PerformMathematicalOperation(chromosomeSum, divisibleNumberOfParents, Enums.MathOperation.Division);
                 }
                 else container[i] = parentA[i]; // fallback – keep parentA value
             }
@@ -49,7 +53,11 @@ namespace Tiny.Jarvis.Genetic.Crossover
                 while (true)
                 {
                     for (var i = 0; i < length; i++)
-                        parentA[i] = (parentA[i] + parentB[i]) / 2;
+                    {
+                        var sumOfChromosomes = GenericOps.PerformMathematicalOperation(parentA[i], parentB[i], Enums.MathOperation.Addition);
+
+                        parentA[i] = GenericOps.PerformMathematicalOperation(sumOfChromosomes, divisibleNumberOfParents, Enums.MathOperation.Division);
+                    }
 
                     if (!ParentComparer.AreEqual(parentA, container))
                         break;
@@ -67,7 +75,7 @@ namespace Tiny.Jarvis.Genetic.Crossover
             {
                 var chance = random.Next(1, 101); // 1..100
                 if (chance <= mutateThreshold)
-                    parentA[i] = random.Next(minGeneValue, maxGeneValue + 1);
+                    parentA[i] = GenericOps.GetNextByType(random, minGeneValue, maxGeneValue);
             }
         }
     }

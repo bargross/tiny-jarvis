@@ -1,18 +1,33 @@
-﻿namespace Tiny.Jarvis.Tokenization.Trainers
+﻿using Tiny.Jarvis.Training.Util;
+
+namespace Tiny.Jarvis.Tokenization.Trainers
 {
     internal class BytePairEncodingTrainer
     {
         public (Dictionary<string, int> IdentifierToToken, List<(string Left, string Right)> MergeRules) Train(
-            string trainingCorpus,
+            IEnumerable<string> trainingCorpus,
             int numberOfMerges)
         {
-            // Step 1: Split into words and count frequencies
-            var wordFrequencies = trainingCorpus
-                .Split(' ')
-                .GroupBy(word => word)
-                .ToDictionary(group => group.Key, group => group.Count());
+            Console.WriteLine($"Starting Byte‑Pair Encoding (BPE) training with {numberOfMerges} merges...");
 
-            // Step 2: Initial tokens = all characters
+            // Step 1: Pre‑tokenize and count word frequencies
+            var wordFrequencies = new Dictionary<string, int>();
+            foreach (var doc in trainingCorpus)
+            {
+                var tokens = Helpers.PreTokenize(doc);
+                foreach (var token in tokens)
+                {
+                    wordFrequencies.TryGetValue(token, out var count);
+                    wordFrequencies[token] = count + 1;
+                }
+            }
+
+            Console.WriteLine($"Pre‑tokenised {wordFrequencies.Count} unique words.");
+
+            // Remove any empty tokens (just in case)
+            wordFrequencies.Remove(string.Empty);
+
+            // Step 2: Initial tokens = all characters of each word
             var currentTokenization = wordFrequencies
                 .ToDictionary(
                     pair => pair.Key,
@@ -20,6 +35,8 @@
                 );
 
             var mergeRules = new List<(string Left, string Right)>();
+
+            var reportInterval = Math.Max(1, numberOfMerges / 20); // report ~5% increments
 
             for (var merge = 0; merge < numberOfMerges; merge++)
             {
@@ -36,7 +53,11 @@
                     .OrderByDescending(pair => pair.Frequency)
                     .FirstOrDefault()?.Pair;
 
-                if (bestPair == null) break;
+                if (bestPair == null)
+                {
+                    Console.WriteLine($"No more pairs to merge. Stopping early at merge {merge}.");
+                    break;
+                }
 
                 mergeRules.Add(bestPair.Value);
 
@@ -61,9 +82,21 @@
                     }
                     currentTokenization[word] = mergedTokens;
                 }
+
+                // Progress reporting
+                var currentVocabSize = currentTokenization.Values
+                    .SelectMany(tokens => tokens)
+                    .Distinct()
+                    .Count();
+
+                if ((merge + 1) % reportInterval == 0 || merge == numberOfMerges - 1)
+                {
+                    var percent = (int)((merge + 1) * 100.0 / numberOfMerges);
+                    Console.WriteLine($"Progress: {percent}% | Merge {merge + 1}/{numberOfMerges} | Current vocab size: {currentVocabSize}");
+                }
             }
 
-            // Build vocabulary from all unique tokens appearing after merges
+            // Build final vocabulary from all unique tokens appearing after merges
             var allTokens = currentTokenization.Values
                 .SelectMany(tokens => tokens)
                 .Distinct()
@@ -73,6 +106,9 @@
             var tokenToIdentifier = allTokens
                 .Select((token, index) => new { token, index })
                 .ToDictionary(pair => pair.token, pair => pair.index);
+
+            Console.WriteLine($"Training complete. Final vocabulary size: {tokenToIdentifier.Count}");
+            Console.WriteLine($"Total merges performed: {mergeRules.Count}");
 
             return (tokenToIdentifier, mergeRules);
         }

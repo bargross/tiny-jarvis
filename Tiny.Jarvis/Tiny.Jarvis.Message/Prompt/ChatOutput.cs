@@ -5,13 +5,11 @@ namespace Tiny.Jarvis.Message.Prompt
 {
     public class ChatOutput
     {
-        //private static int _outputDelay = 250;
-
-        public static void Reply(string response, List<ConversationExchange> history, string? promptName = null)
+        public static void Reply(string response, List<ConversationExchange> history, string promptName)
         {
             var message = new ChatMessage
             {
-                From = promptName ?? "assistant",
+                From = promptName,
                 Content = response,
                 CreatedAt = DateTime.UtcNow
             };
@@ -20,14 +18,12 @@ namespace Tiny.Jarvis.Message.Prompt
 
             conversation.AssistantResposne = message;
 
-            var responseParts = response.Split(' ');
+            Console.WriteLine(message.ToString());
 
-            Console.Write($"Cleaned Resposne: {message.From}: {message.Content}");
-
-            Console.Write(Environment.NewLine);
+            Console.WriteLine(Environment.NewLine);
         }
 
-        public static bool ShouldEnd(List<ConversationExchange> history, string? userPromptName = null)
+        public static bool ShouldEnd(List<ConversationExchange> history, string userPromptName)
         {
             var assistantResponse = new ChatMessage
             {

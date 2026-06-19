@@ -1,7 +1,6 @@
 using Tiny.Jarvis.Extensions;
-using Tiny.Jarvis.Util;
 using Tiny.Jarvis.Training.Models;
-using Tiny.Jarvis.Tokenization;
+using Tiny.Jarvis.Training.Util;
 
 namespace Tiny.Jarvis.MLModels;
 
@@ -18,44 +17,64 @@ public class TinyJarvisModel
     private readonly Value[][] _outputHead;
 
     // Still need a flat list for optimiser
-    private List<Value> _allParameters;
+    private readonly List<Value> _allParameters;
 
     private readonly int _embeddingSize;
     private readonly int _headCount;
     private readonly int _layerCount;
     private readonly int _headDimension;
 
-    private readonly ITokenizer _tokenizer;
+    private readonly int _bos;
+    private readonly int _eos;
+
+    public Value[][] TokenEmbeddings
+    {
+        get { return _tokenEmbeddings; }
+    }
+    public Value[][] PositionEmbeddings
+    {
+        get { return _positionEmbeddings; }
+    }
+    public List<LayerWeights> Layers
+    {
+        get { return _layers; }
+    }
+
+    public Value[][] OutputHead 
+    {
+        get { return _outputHead; } 
+    }
 
     /// <summary>All trainable parameters, flattened into a single list for the optimiser.</summary>
     public int MaxSequenceLength { get; }
-    //public int TotalTokenEmbeddings { get; }
-    //public int TotalPositionEmbeddings { get; }
-    public IReadOnlyList<Value> Parameters
+
+    public IReadOnlyList<Value> Parameters => BuildParameterList();
+
+    public TinyJarvisModel(
+        int embeddingSize,
+        int headCount,
+        int layerCount,
+        int maxSequenceLength,
+        Value[][] tokenEmbeddings,
+        Value[][] positionEmbeddings,
+        Value[][] outputHead,
+        List<LayerWeights> layers,
+        Random random,
+        int bos,
+        int eos
+    )
     {
-        get
-        {
-            // updates parameters -> might be best to move this to the constructor
-            if (_allParameters == null)
-            {
-                _allParameters = _tokenEmbeddings?.SelectMany(row => row)?.ToList();
-                _allParameters?.AddRange(_positionEmbeddings.SelectMany(row => row));
+        _embeddingSize = embeddingSize;
+        _headCount = headCount;
+        _layerCount = layerCount;
+        _headDimension = embeddingSize / headCount;
+        _bos = bos;
+        _eos = eos;
 
-                foreach (var layer in _layers)
-                {
-                    _allParameters.AddRange(layer.Query.SelectMany(row => row));
-                    _allParameters.AddRange(layer.Key.SelectMany(row => row));
-                    _allParameters.AddRange(layer.Value.SelectMany(row => row));
-                    _allParameters.AddRange(layer.Output.SelectMany(row => row));
-                    _allParameters.AddRange(layer.FeedForwardOne.SelectMany(row => row));
-                    _allParameters.AddRange(layer.FeedForwardTwo.SelectMany(row => row));
-                }
-
-                _allParameters.AddRange(_outputHead.SelectMany(row => row));
-            }
-
-            return _allParameters;
-        }
+        _tokenEmbeddings = tokenEmbeddings;
+        _positionEmbeddings = positionEmbeddings;
+        _outputHead = outputHead;
+        _layers = layers;
     }
 
     public TinyJarvisModel(
@@ -64,17 +83,20 @@ public class TinyJarvisModel
         int layerCount,
         int maxSequenceLength,
         Random random,
-        ITokenizer tokenizer
+        int bos,
+        int eos,
+        int vocabularySize
     ) {
         _embeddingSize = embeddingSize;
         _headCount = headCount;
         _layerCount = layerCount;
         _headDimension = embeddingSize / headCount;
-        _tokenizer = tokenizer;
+        _bos = bos;
+        _eos = eos;
 
-        _tokenEmbeddings = Helpers.CreateMatrix(random, _tokenizer.VocabSize, embeddingSize);
+        _tokenEmbeddings = Helpers.CreateMatrix(random, vocabularySize, embeddingSize);
         _positionEmbeddings = Helpers.CreateMatrix(random, maxSequenceLength, embeddingSize);
-        _outputHead = Helpers.CreateMatrix(random, _tokenizer.VocabSize, embeddingSize);
+        _outputHead = Helpers.CreateMatrix(random, vocabularySize, embeddingSize);
 
         _layers = new List<LayerWeights>();
         for (int i = 0; i < layerCount; i++)
@@ -91,6 +113,30 @@ public class TinyJarvisModel
         }
 
         MaxSequenceLength = maxSequenceLength;
+    }
+
+    private IReadOnlyList<Value> BuildParameterList()
+    {
+        // updates parameters -> might be best to move this to the constructor
+        var allParameters = new List<Value>();
+
+        allParameters.AddRange((_tokenEmbeddings ?? []).SelectMany(row => row));
+
+        allParameters?.AddRange((_positionEmbeddings ?? []).SelectMany(row => row));
+
+        foreach (var layer in _layers)
+        {
+            allParameters.AddRange(layer.Query.SelectMany(row => row));
+            allParameters.AddRange(layer.Key.SelectMany(row => row));
+            allParameters.AddRange(layer.Value.SelectMany(row => row));
+            allParameters.AddRange(layer.Output.SelectMany(row => row));
+            allParameters.AddRange(layer.FeedForwardOne.SelectMany(row => row));
+            allParameters.AddRange(layer.FeedForwardTwo.SelectMany(row => row));
+        }
+
+        allParameters.AddRange(_outputHead.SelectMany(row => row));
+
+        return allParameters;
     }
 
     public List<Value> Forward(
@@ -116,7 +162,7 @@ public class TinyJarvisModel
         // Initial RmsNorm: stabilises the embeddings before entering the first block.
         // This isn't standard in all transformer implementations, but gives the
         // residual stream a stable starting magnitude.
-        probabilities = Helpers.RmsNorm(probabilities);
+        probabilities = Calculate.RmsNorm(probabilities);
 
         for (var layerIndex = 0; layerIndex < _layerCount; layerIndex++)
         {
@@ -124,11 +170,15 @@ public class TinyJarvisModel
             probabilities = MlpBlock(probabilities, layerIndex);
         }
 
+        probabilities = Calculate.RmsNorm(probabilities);
+
         // Note: production transformers typically apply a final RmsNorm here
         // before the output projection. We omit it for simplicity.
-        return Helpers.Linear(probabilities, _outputHead);
+        return Calculate.Linear(probabilities, _outputHead);
     }
 
+    // Attention wrapped with pre-norm and a residual connection.
+    // Mutates keys[layerIndex] and values[layerIndex] by appending the current position's K and V.
     // Attention wrapped with pre-norm and a residual connection.
     // Mutates keys[layerIndex] and values[layerIndex] by appending the current position's K and V.
     private List<Value> AttentionBlock(
@@ -139,12 +189,12 @@ public class TinyJarvisModel
     {
         // Save input for residual connection later
         var residualConnection = new List<Value>(hiddenState);
-        hiddenState = Helpers.RmsNorm(hiddenState);
+        hiddenState = Calculate.RmsNorm(hiddenState);
 
         // Compute Query, Key, Value projections
-        var queryProjection = Helpers.Linear(hiddenState, _layers[layerIndex].Query);
-        var keyProjection = Helpers.Linear(hiddenState, _layers[layerIndex].Key);
-        var valueProjection = Helpers.Linear(hiddenState, _layers[layerIndex].Value);
+        var queryProjection = Calculate.Linear(hiddenState, _layers[layerIndex].Query);
+        var keyProjection = Calculate.Linear(hiddenState, _layers[layerIndex].Key);
+        var valueProjection = Calculate.Linear(hiddenState, _layers[layerIndex].Value);
 
         // Store current Key and Value in caches (for autoregressive generation)
         keysCache[layerIndex].Add(keyProjection);
@@ -171,7 +221,7 @@ public class TinyJarvisModel
             }
 
             // Convert logits to probabilities
-            var attentionWeights = Helpers.Softmax(attentionLogits);
+            var attentionWeights = Calculate.Softmax(attentionLogits);
 
             // Weighted sum of values (this head's output)
             var headOutputValues = new List<Value>();
@@ -190,7 +240,7 @@ public class TinyJarvisModel
         }
 
         // Final linear projection and residual connection
-        var attentionOutput = Helpers.Linear(concatenatedHeadOutputs, _layers[layerIndex].Output);
+        var attentionOutput = Calculate.Linear(concatenatedHeadOutputs, _layers[layerIndex].Output);
         for (var dimensionIndex = 0; dimensionIndex < _embeddingSize; dimensionIndex++)
             attentionOutput[dimensionIndex] += residualConnection[dimensionIndex];
 
@@ -202,16 +252,15 @@ public class TinyJarvisModel
     {
         var xResidual = new List<Value>(probabilities);
 
-        probabilities = Helpers.RmsNorm(probabilities);
-        probabilities = Helpers.Linear(probabilities, _layers[layerIndex].FeedForwardOne);
+        probabilities = Calculate.RmsNorm(probabilities);
+        probabilities = Calculate.Linear(probabilities, _layers[layerIndex].FeedForwardOne);
 
-        probabilities = probabilities.Select(xi => xi.Relu()).ToList();
+        probabilities = probabilities.Select(xi => xi.SiLU()).ToList();
 
-        probabilities = Helpers.Linear(probabilities, _layers[layerIndex].FeedForwardTwo);
+        probabilities = Calculate.Linear(probabilities, _layers[layerIndex].FeedForwardTwo);
         
         for (var embeddingIndex = 0; embeddingIndex < _embeddingSize; embeddingIndex++)
             probabilities[embeddingIndex] += xResidual[embeddingIndex];
-        
 
         return probabilities;
     }
@@ -227,30 +276,26 @@ public class TinyJarvisModel
     /// <param name="endTokenId">If provided, stop generation when this token is produced.</param>
     /// <returns>List of newly generated token IDs (excluding the original prompt).</returns>
     public IReadOnlyList<int> Generate(
-    IReadOnlyList<int> tokens,
-    int maxNewTokens,
-    double temperature = 1.0,
-    int topK = 0,
-    double topP = 1.0,
-    bool prependBos = true)
+        IReadOnlyList<int> tokens,
+        int maxNewTokens,
+        double temperature = 1.0,
+        int topK = 0,
+        double topP = 1.0,
+        bool prependBos = true)
     {
         // Copy the prompt to a mutable list and optionally prepend BOS
         var allTokens = new List<int>(tokens);
-        if (prependBos && (allTokens.Count == 0 || allTokens[0] != _tokenizer.BOS))
-        {
-            allTokens.Insert(0, _tokenizer.BOS);
-        }
-
+        if (prependBos && (allTokens.Count == 0 || allTokens[0] != _bos))
+            allTokens.Insert(0, _bos);
+        
         // Reserve at least one slot for generation, but don't go over MaxSequenceLength
         var maxPromptTokens = MaxSequenceLength - 1; // leave room for at least one generated token
-        int tokenCount = Math.Min(tokens.Count, maxPromptTokens);
 
         // If the prompt is too long, you might want to truncate from the front, but here we just take the first tokenCount tokens.
-        if (tokenCount < allTokens.Count)
-        {
-            // Optional: log a warning that prompt was truncated
-            allTokens = allTokens.Take(tokenCount).ToList();
-        }
+        if (allTokens.Count > maxPromptTokens)
+            allTokens = allTokens.Take(maxPromptTokens).ToList();
+
+        var tokenCount = allTokens.Count;
 
         var keys = CreateKvCache();
         var values = CreateKvCache();
@@ -270,17 +315,14 @@ public class TinyJarvisModel
 
             var nextToken = Helpers.SampleToken(lastLogits, temperature, topK, topP);
 
+            if (nextToken == _eos)
+                break;
+
             generated.Add(nextToken);
             allTokens.Add(nextToken);
 
-            if (nextToken == _tokenizer.EOS)
-                break;
-
             // -1 because we need to leave room? Actually we can use up to MaxSequenceLength-1 for feeding the token itself.
-            if (currentPos >= maxPromptTokens) 
-            {
-                break;
-            }
+            if (currentPos >= MaxSequenceLength) break;
 
             lastLogits = Forward(nextToken, currentPos, keys, values);
             currentPos++;

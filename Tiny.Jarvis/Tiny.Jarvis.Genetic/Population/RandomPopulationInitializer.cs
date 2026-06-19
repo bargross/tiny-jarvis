@@ -1,19 +1,22 @@
-﻿namespace Tiny.Jarvis.Genetic.Population
+﻿using Tiny.Jarvis.Genetic.Util;
+
+namespace Tiny.Jarvis.Genetic.Population
 {
     /// <summary>
     /// Initialises a population (chromosome) by filling it with random integer values.
     /// </summary>
-    public class RandomPopulationInitializer : IPopulationInitializer
+    public class RandomPopulationInitializer<IPopulationType> : IPopulationInitializer<IPopulationType> where IPopulationType: IComparable<IPopulationType>
     {
-        public void Initialize(int[] array, int minGeneValue, int maxGeneValue, Random random) 
+        public void Initialize(IPopulationType[] array, IPopulationType? minGeneValue, IPopulationType? maxGeneValue, Random random) 
         {
             if (array == null)
                 throw new ArgumentNullException(nameof(array));
-            if (minGeneValue > maxGeneValue)
+
+            if (GenericOps.Compare(minGeneValue, maxGeneValue) > 0)
                 throw new ArgumentException("minGeneValue must be less than or equal to maxGeneValue");
 
             for (int i = 0; i < array.Length; i++)
-                array[i] = random.Next(minGeneValue, maxGeneValue + 1);
+                array[i] = GenericOps.GetNextByType(random, minGeneValue, maxGeneValue);
         }
     }
 }

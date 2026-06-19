@@ -52,10 +52,13 @@ namespace Tiny.Jarvis.Util
                     while ((line = reader.ReadLine()) != null)
                     {
                         if (string.IsNullOrWhiteSpace(line)) continue;
+
                         var item = JsonSerializer.Deserialize<TValue>(line);
+
                         if (item != null) list.Add(item);
                     }
                 }
+
                 return list;
             }
 
