@@ -9,7 +9,7 @@ public class AdamOptimiser: IOptimizer
     private const double SquaredGradSmoothing = 0.99;
     private const double Epsilon = 1e-8;
 
-    private List<Value> _parameters;
+    private List<Scalar> _parameters;
     private readonly double[] _momentum;
     private readonly double[] _squaredGradAvg;
     private readonly double _baseLearningRate;
@@ -19,7 +19,7 @@ public class AdamOptimiser: IOptimizer
 
     public int CurrentStep => _step;
 
-    public AdamOptimiser(IEnumerable<Value> parameters, double learningRate, int totalSteps, double maxGradNorm = 1.0)
+    public AdamOptimiser(IEnumerable<Scalar> parameters, double learningRate, int totalSteps, double maxGradNorm = 1.0)
     {
         _parameters = parameters.ToList();
         var paramCount = _parameters.Count;
@@ -33,7 +33,7 @@ public class AdamOptimiser: IOptimizer
 
     public AdamOptimiser(int step, double[] momentum, double[] squaredGradAvg, double learningRate, int totalSteps, double maxGradNorm = 1.0)
     {
-        _parameters = new List<Value>();
+        _parameters = new List<Scalar>();
 
         _step = step;
         _momentum = momentum;
@@ -72,7 +72,7 @@ public class AdamOptimiser: IOptimizer
 
         for (var i = 0; i < _parameters.Count; i++)
         {
-            Value p = _parameters[i];
+            Scalar p = _parameters[i];
             _momentum[i] = MomentumSmoothing * _momentum[i] + (1 - MomentumSmoothing) * p.Grad;
             
             _squaredGradAvg[i] = SquaredGradSmoothing * _squaredGradAvg[i] + (1 - SquaredGradSmoothing) * Math.Pow(p.Grad, 2);
@@ -91,5 +91,5 @@ public class AdamOptimiser: IOptimizer
         SquaredGradAvg = _squaredGradAvg,
     };
 
-    public void SetParameters(List<Value> parameters) => _parameters.AddRange(parameters);
+    public void SetParameters(List<Scalar> parameters) => _parameters.AddRange(parameters);
 }

@@ -7,17 +7,17 @@ namespace Tiny.Jarvis.MLModels;
 public class TinyJarvisModel
 {
     // Embeddings
-    private readonly Value[][] _tokenEmbeddings;
-    private readonly Value[][] _positionEmbeddings;
+    private readonly Scalar[][] _tokenEmbeddings;
+    private readonly Scalar[][] _positionEmbeddings;
 
     // Per‑layer weights
     private readonly List<LayerWeights> _layers;
 
     // Output head
-    private readonly Value[][] _outputHead;
+    private readonly Scalar[][] _outputHead;
 
     // Still need a flat list for optimiser
-    private readonly List<Value> _allParameters;
+    private readonly List<Scalar> _allParameters;
 
     private readonly int _embeddingSize;
     private readonly int _headCount;
@@ -27,11 +27,11 @@ public class TinyJarvisModel
     private readonly int _bos;
     private readonly int _eos;
 
-    public Value[][] TokenEmbeddings
+    public Scalar[][] TokenEmbeddings
     {
         get { return _tokenEmbeddings; }
     }
-    public Value[][] PositionEmbeddings
+    public Scalar[][] PositionEmbeddings
     {
         get { return _positionEmbeddings; }
     }
@@ -40,7 +40,7 @@ public class TinyJarvisModel
         get { return _layers; }
     }
 
-    public Value[][] OutputHead 
+    public Scalar[][] OutputHead 
     {
         get { return _outputHead; } 
     }
@@ -48,16 +48,16 @@ public class TinyJarvisModel
     /// <summary>All trainable parameters, flattened into a single list for the optimiser.</summary>
     public int MaxSequenceLength { get; }
 
-    public IReadOnlyList<Value> Parameters => BuildParameterList();
+    public IReadOnlyList<Scalar> Parameters => BuildParameterList();
 
     public TinyJarvisModel(
         int embeddingSize,
         int headCount,
         int layerCount,
         int maxSequenceLength,
-        Value[][] tokenEmbeddings,
-        Value[][] positionEmbeddings,
-        Value[][] outputHead,
+        Scalar[][] tokenEmbeddings,
+        Scalar[][] positionEmbeddings,
+        Scalar[][] outputHead,
         List<LayerWeights> layers,
         Random random,
         int bos,
@@ -115,10 +115,10 @@ public class TinyJarvisModel
         MaxSequenceLength = maxSequenceLength;
     }
 
-    private IReadOnlyList<Value> BuildParameterList()
+    private IReadOnlyList<Scalar> BuildParameterList()
     {
         // updates parameters -> might be best to move this to the constructor
-        var allParameters = new List<Value>();
+        var allParameters = new List<Scalar>();
 
         allParameters.AddRange((_tokenEmbeddings ?? []).SelectMany(row => row));
 
@@ -139,11 +139,11 @@ public class TinyJarvisModel
         return allParameters;
     }
 
-    public List<Value> Forward(
+    public List<Scalar> Forward(
         int tokenId,
         int posId,
-        List<List<Value>>[] keys,
-        List<List<Value>>[] values
+        List<List<Scalar>>[] keys,
+        List<List<Scalar>>[] values
     ) {
         // validate ids
         if (tokenId < 0 || tokenId >= _tokenEmbeddings.Length)
@@ -155,7 +155,7 @@ public class TinyJarvisModel
         var tokenEmbedding = _tokenEmbeddings.GetRow(tokenId);
         var positionEmbedding = _positionEmbeddings.GetRow(posId);
 
-        var probabilities = new List<Value>();
+        var probabilities = new List<Scalar>();
         for (var i = 0; i < _embeddingSize; i++)
             probabilities.Add(tokenEmbedding[i] + positionEmbedding[i]);
 
@@ -181,14 +181,14 @@ public class TinyJarvisModel
     // Mutates keys[layerIndex] and values[layerIndex] by appending the current position's K and V.
     // Attention wrapped with pre-norm and a residual connection.
     // Mutates keys[layerIndex] and values[layerIndex] by appending the current position's K and V.
-    private List<Value> AttentionBlock(
-        List<Value> hiddenState,
+    private List<Scalar> AttentionBlock(
+        List<Scalar> hiddenState,
         int layerIndex,
-        List<List<Value>>[] keysCache,
-        List<List<Value>>[] valuesCache)
+        List<List<Scalar>>[] keysCache,
+        List<List<Scalar>>[] valuesCache)
     {
         // Save input for residual connection later
-        var residualConnection = new List<Value>(hiddenState);
+        var residualConnection = new List<Scalar>(hiddenState);
         hiddenState = Calculate.RmsNorm(hiddenState);
 
         // Compute Query, Key, Value projections
@@ -201,19 +201,19 @@ public class TinyJarvisModel
         valuesCache[layerIndex].Add(valueProjection);
 
         // Multi‑head attention: process each head independently
-        var concatenatedHeadOutputs = new List<Value>();
+        var concatenatedHeadOutputs = new List<Scalar>();
         for (var headIndex = 0; headIndex < _headCount; headIndex++)
         {
             var headStartIndex = headIndex * _headDimension;
             var queryForHead = queryProjection.GetRange(headStartIndex, _headDimension);
 
             // Compute scaled dot‑product attention scores against all past keys
-            var attentionLogits = new List<Value>();
+            var attentionLogits = new List<Scalar>();
             var cachedPositionsCount = keysCache[layerIndex].Count;
             for (var pastPosition = 0; pastPosition < cachedPositionsCount; pastPosition++)
             {
                 var keyForHead = keysCache[layerIndex][pastPosition].GetRange(headStartIndex, _headDimension);
-                var dotProduct = new Value(0);
+                var dotProduct = new Scalar(0);
                 for (var dimension = 0; dimension < _headDimension; dimension++)
                     dotProduct += queryForHead[dimension] * keyForHead[dimension];
 
@@ -224,9 +224,9 @@ public class TinyJarvisModel
             var attentionWeights = Calculate.Softmax(attentionLogits);
 
             // Weighted sum of values (this head's output)
-            var headOutputValues = new List<Value>();
+            var headOutputValues = new List<Scalar>();
             for (var dimension = 0; dimension < _headDimension; dimension++)
-                headOutputValues.Add(new Value(0));
+                headOutputValues.Add(new Scalar(0));
 
             for (var pastPosition = 0; pastPosition < cachedPositionsCount; pastPosition++)
             {
@@ -248,9 +248,9 @@ public class TinyJarvisModel
     }
 
     // Two-layer feed-forward with ReLU, wrapped with pre-norm and a residual connection.
-    private List<Value> MlpBlock(List<Value> probabilities, int layerIndex)
+    private List<Scalar> MlpBlock(List<Scalar> probabilities, int layerIndex)
     {
-        var xResidual = new List<Value>(probabilities);
+        var xResidual = new List<Scalar>(probabilities);
 
         probabilities = Calculate.RmsNorm(probabilities);
         probabilities = Calculate.Linear(probabilities, _layers[layerIndex].FeedForwardOne);
@@ -299,7 +299,7 @@ public class TinyJarvisModel
 
         var keys = CreateKvCache();
         var values = CreateKvCache();
-        List<Value>? lastLogits = null;
+        List<Scalar>? lastLogits = null;
 
         // Feed prompt tokens
         for (var pos = 0; pos < tokenCount; pos++)
@@ -332,9 +332,9 @@ public class TinyJarvisModel
     }
 
     /// <summary>Creates a fresh KV cache for a new document/sample.</summary>
-    public List<List<Value>>[] CreateKvCache()
+    public List<List<Scalar>>[] CreateKvCache()
     {
-        var cache = new List<List<Value>>[_layerCount];
+        var cache = new List<List<Scalar>>[_layerCount];
         for (var i = 0; i < _layerCount; i++)
         {
             cache[i] = [];

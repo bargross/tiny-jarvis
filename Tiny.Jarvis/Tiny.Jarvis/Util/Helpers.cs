@@ -8,15 +8,15 @@ public static class Helpers
     /// <summary>
     /// Creates a matrix of Value objects initialized with small random numbers (normal distribution).
     /// </summary>
-    public static Value[][] CreateMatrix(Random randomGenerator, int rowCount, int columnCount, double standardDeviation = 0.08)
+    public static Scalar[][] CreateMatrix(Random randomGenerator, int rowCount, int columnCount, double standardDeviation = 0.08)
     {
-        var matrix = new Value[rowCount][];
+        var matrix = new Scalar[rowCount][];
         for (var rowIndex = 0; rowIndex < rowCount; rowIndex++)
         {
-            matrix[rowIndex] = new Value[columnCount];
+            matrix[rowIndex] = new Scalar[columnCount];
 
             for (var columnIndex = 0; columnIndex < columnCount; columnIndex++)
-                matrix[rowIndex][columnIndex] = new Value(Calculate.RandomBellCurve(randomGenerator, 0, standardDeviation));
+                matrix[rowIndex][columnIndex] = new Scalar(Calculate.RandomBellCurve(randomGenerator, 0, standardDeviation));
         }
 
         return matrix;
@@ -25,7 +25,7 @@ public static class Helpers
     /// <summary>
     /// Samples a token ID from the logits using temperature, top‑k, and top‑p (nucleus) sampling.
     /// </summary>
-    public static int SampleToken(List<Value> logits, double temperature, int topK, double topP)
+    public static int SampleToken(List<Scalar> logits, double temperature, int topK, double topP)
     {
         Calculate.ApplyTemperature(logits, temperature);
 

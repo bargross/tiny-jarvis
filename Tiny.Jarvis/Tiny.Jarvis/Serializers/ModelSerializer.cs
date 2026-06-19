@@ -22,7 +22,7 @@ namespace Tiny.Jarvis.Training.Serializers
             writer.Write(hParams.VocabularySize); // from tokenizer, but stored for consistency
 
             // Helper to write a jagged float array
-            void WriteValueMatrix(Value[][] matrix)
+            void WriteValueMatrix(Scalar[][] matrix)
             {
                 var rows = matrix.Length;
                 var cols = matrix[0].Length;
@@ -73,18 +73,18 @@ namespace Tiny.Jarvis.Training.Serializers
             var savedVocabSize = reader.ReadInt32(); // optional
 
             // Helper to read a Value[][] matrix
-            Value[][] ReadValueMatrix()
+            Scalar[][] ReadValueMatrix()
             {
                 var rows = reader.ReadInt32();
                 var cols = reader.ReadInt32();
-                var matrix = new Value[rows][];
+                var matrix = new Scalar[rows][];
                 for (int i = 0; i < rows; i++)
                 {
-                    matrix[i] = new Value[cols];
+                    matrix[i] = new Scalar[cols];
                     for (int j = 0; j < cols; j++)
                     {
                         double data = reader.ReadDouble();
-                        matrix[i][j] = new Value(data); // create Value with the loaded data
+                        matrix[i][j] = new Scalar(data); // create Value with the loaded data
                     }
                 }
                 return matrix;

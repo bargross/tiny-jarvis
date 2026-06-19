@@ -9,12 +9,12 @@ namespace Tiny.Jarvis.Extensions
         // Convenience overload: allocates fresh buffers on each call.
         // Good for one-off use in the early chapters. The 3-argument version below
         // lets the training loop in Chapter 7 reuse buffers across thousands of steps.
-        public static void Backward(this Value value) => value.Backward([], [], new Stack<(Value, int)>());
+        public static void Backward(this Scalar value) => value.Backward([], [], new Stack<(Scalar, int)>());
 
-        public static void Backward(this Value value,
-            List<Value> topo,
-            HashSet<Value> visited,
-            Stack<(Value current, int inputIndex)> stack
+        public static void Backward(this Scalar value,
+            List<Scalar> topo,
+            HashSet<Scalar> visited,
+            Stack<(Scalar current, int inputIndex)> stack
         ) {
             if (value.Grad == 0) value.Grad = 1.0;
 
@@ -28,12 +28,12 @@ namespace Tiny.Jarvis.Extensions
                 if (current == null) continue;
 
                 var inputIndex = result.inputIndex;
-                Value[]? inputs = current?.Inputs;
+                Scalar[]? inputs = current?.Inputs;
 
                 if (inputs != null && inputIndex < inputs.Length)
                 {
                     stack.Push((current!, inputIndex + 1));
-                    Value input = inputs[inputIndex];
+                    Scalar input = inputs[inputIndex];
 
                     if (visited.Add(input))
                         stack.Push((input, 0));

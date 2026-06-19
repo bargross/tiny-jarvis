@@ -2,11 +2,11 @@
 {
     public class LayerWeights
     {
-        public Value[][] Query { get; set; }
-        public Value[][] Key { get; set; }
-        public Value[][] Value { get; set; }
-        public Value[][] Output { get; set; }
-        public Value[][] FeedForwardOne { get; set; }
-        public Value[][] FeedForwardTwo { get; set; }
+        public Scalar[][] Query { get; set; }
+        public Scalar[][] Key { get; set; }
+        public Scalar[][] Value { get; set; }
+        public Scalar[][] Output { get; set; }
+        public Scalar[][] FeedForwardOne { get; set; }
+        public Scalar[][] FeedForwardTwo { get; set; }
     }
 }
