@@ -55,7 +55,8 @@ public static class TinyJarvisModelTrainer
             else switch (tokenizerStrategy)
             {
                 case TokenizerStrategy.Chars:
-                    tokenizerContainer = new Either<ITokenizer<byte[]>, ITokenizer<string>>(TokenizerGenerator.GetTokenizer<string>(tokenizerStrategy, ["abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 .,|!?-'\""]));
+                    //["abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 .,|!?-'\""]
+                    tokenizerContainer = new Either<ITokenizer<byte[]>, ITokenizer<string>>(TokenizerGenerator.GetTokenizer<string>(tokenizerStrategy, trainingDocuments));
                     break;
 
                 default:
