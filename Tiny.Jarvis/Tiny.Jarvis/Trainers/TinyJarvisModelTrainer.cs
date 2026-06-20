@@ -241,16 +241,14 @@ public static class TinyJarvisModelTrainer
 
         if (hyperParams.LoadedFromPreviousRun && !areLoadedFilePathsNotPopulated)
         {
+            // Replace the existing AddToFileName with this:
             string AddToFileName(string original, string newPostFix)
             {
-                var originalSplit = original.Split('\\');
-                var baseName = string.Join("\\", originalSplit.Take(original.Length - 1));
+                var dir = Path.GetDirectoryName(original) ?? "";
+                var nameWithoutExt = Path.GetFileNameWithoutExtension(original);
+                var ext = Path.GetExtension(original);
 
-                var fileNameSplit = originalSplit.Last().Split('.');
-                var name = fileNameSplit[0];
-                var format = fileNameSplit[1];
-
-                return Path.Combine(baseName, $"{name}-{newPostFix}.{format}");
+                return Path.Combine(dir, $"{nameWithoutExt}-{newPostFix}{ext}");
             }
 
             var modelFileOld = hyperParams.LoadModelFile;
@@ -259,20 +257,29 @@ public static class TinyJarvisModelTrainer
 
             var postFix = "completed";
             hyperParams.SaveModelFile = AddToFileName(modelFileOld, postFix);
-            hyperParams.SaveOptimizerFile = AddToFileName(modelFileOld, postFix);
-            hyperParams.SaveTokenizerFile = AddToFileName(modelFileOld, postFix);
-
-            foreach (var oldFile in new string[] { modelFileOld, optimizerFileOld, tokenizerFileOld })
-                File.Delete(oldFile);
+            hyperParams.SaveOptimizerFile = AddToFileName(optimizerFileOld, postFix);
+            hyperParams.SaveTokenizerFile = AddToFileName(tokenizerFileOld, postFix);
         }
 
-        ModelSerializer.Save(model, hyperParams);
+        Console.WriteLine("Training complete - Save model? (y/n)");
+        var saveResponse = Console.ReadLine();
+        if (saveResponse.ToLower() == "y")
+        {
+            ModelSerializer.Save(model, hyperParams);
 
-        if (tokenizerContainer.IsLeft) TokenizerSerializer.Save(tokenizerContainer.Left, hyperParams.SaveTokenizerFile);
-        else TokenizerSerializer.Save(tokenizerContainer.Right, hyperParams.SaveTokenizerFile);
+            if (tokenizerContainer.IsLeft) TokenizerSerializer.Save(tokenizerContainer.Left, hyperParams.SaveTokenizerFile);
+            else TokenizerSerializer.Save(tokenizerContainer.Right, hyperParams.SaveTokenizerFile);
 
-        OptimizerSerializer.Save(optimizer, hyperParams.SaveOptimizerFile);
+            OptimizerSerializer.Save(optimizer, hyperParams.SaveOptimizerFile);
+        }
 
+        Console.WriteLine("Delete old ones? (y/n)");
+        var deleteResponse = Console.ReadLine();
+
+        if (deleteResponse.ToLower() == "y")
+            foreach (var oldFile in new string[] { hyperParams.LoadModelFile, hyperParams.LoadOptimizerFile, hyperParams.LoadTokenizerFile })
+                File.Delete(oldFile);
+        
         var timespan = TimeSpan.FromMilliseconds(watch.ElapsedMilliseconds);
         var secondsDiff = timespan.Seconds;
         var minutesDiff = timespan.Minutes;

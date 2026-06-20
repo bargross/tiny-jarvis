@@ -37,7 +37,7 @@ void BeginChat()
     
     var hyperParams = new TinyJarvisHyperParameters
     {
-        TokenizerStrategy = TokenizerStrategy.Chars,
+        TokenizerStrategy = TokenizerStrategy.BytePair,
         OptimizerStrategy = OptimizerStrategy.Adam,
         EmbeddingSize = 64,
         MaxSequenceLength = 42,
@@ -47,8 +47,8 @@ void BeginChat()
         MaxNumberOfSteps = 10000,
         MaxGradNorm = 1.0,
         SaveModelFile = GetUniqueFileNameWithTimestamp(pathToModelSavedRuns, "model-run", "bin", specialName, fileStaveTimestamp),
+        SaveTokenizerFile = GetUniqueFileNameWithTimestamp(pathToTokenizerSavedRuns, "tokenizer-run", "json", specialName, fileStaveTimestamp),
         SaveOptimizerFile = GetUniqueFileNameWithTimestamp(pathToOptimizerSavedRuns, "optimizer-run", "bin", specialName, fileStaveTimestamp),
-        SaveTokenizerFile = GetUniqueFileNameWithTimestamp(pathToOptimizerSavedRuns, "tokenizer-run", "json", specialName, fileStaveTimestamp)
     };
 
     if (!isNewModel)
@@ -128,7 +128,8 @@ void EnsureWritePermissionsOnWindows(string directoryPath)
     Console.WriteLine(Environment.NewLine);
 
     var specialName = "";
-    if (response == "y")
+    var isNewModel = response.ToLower() == "y";
+    if (isNewModel)
     {
         Console.Write("Special model name: ");
         specialName = Console.ReadLine();
@@ -138,7 +139,7 @@ void EnsureWritePermissionsOnWindows(string directoryPath)
             return GetModelOptionalSpecialName();   
     }
 
-    return (response == "y" ,specialName);
+    return (isNewModel, specialName);
 }
 
 string? LoadFromPreviousRun(string path, string item)
@@ -194,26 +195,23 @@ TinyJarvisInteractiveGeneticAlgorithm<TPopulation> CreateGeneticAlgorithm<TPopul
             TPopulation GetCoherence()
             {
                 var chromosomeType = typeof(TPopulation);
-                double? result;
                 if (chromosomeType == typeof(int))
                 {
-                    result = (double)(0.5 * Math.Log(GenericOps.ConvertTo<TPopulation, int>(chromosome[0])));
+                    return GenericOps.ConvertToGenericPopValue<TPopulation, double>((double)(0.5 * Math.Log(GenericOps.ConvertTo<TPopulation, int>(chromosome[0]))));
                 }
 
                 if (chromosomeType == typeof(long))
                 {
-                    result = (0.5 * Math.Log(GenericOps.ConvertTo<TPopulation, long>(chromosome[0])));
+                    return GenericOps.ConvertToGenericPopValue<TPopulation, double>((0.5 * Math.Log(GenericOps.ConvertTo<TPopulation, long>(chromosome[0]))));
                 }
 
-                result = chromosome switch
+                return chromosome switch
                 {
                     
-                    float => 0.3 * GenericOps.ConvertTo<TPopulation, float>(chromosome[0]) + 0.2 * GenericOps.ConvertTo<TPopulation, float>(chromosome[1]),
-                    double => 0.3 * GenericOps.ConvertTo<TPopulation, double>(chromosome[0]) + 0.2 * GenericOps.ConvertTo<TPopulation, double>(chromosome[1]),
-                    decimal => (double)(0.3m * GenericOps.ConvertTo<TPopulation, decimal>(chromosome[0]) + 0.2m * GenericOps.ConvertTo<TPopulation, decimal>(chromosome[1]))
+                    float => GenericOps.ConvertToGenericPopValue<TPopulation, double>(0.3 * GenericOps.ConvertTo<TPopulation, float>(chromosome[0]) + 0.2 * GenericOps.ConvertTo<TPopulation, float>(chromosome[1])),
+                    double => GenericOps.ConvertToGenericPopValue<TPopulation, double>(0.3 * GenericOps.ConvertTo<TPopulation, double>(chromosome[0]) + 0.2 * GenericOps.ConvertTo<TPopulation, double>(chromosome[1])),
+                    decimal => GenericOps.ConvertToGenericPopValue<TPopulation, double>((double)(0.3m * GenericOps.ConvertTo<TPopulation, decimal>(chromosome[0]) + 0.2m * GenericOps.ConvertTo<TPopulation, decimal>(chromosome[1])))
                 };
-
-                return GenericOps.ConvertToGenericPopValue<TPopulation, double>(result.Value);
             }
 
             var topK = chromosome[0];
@@ -334,14 +332,12 @@ List<string> SelectFiles(string pathToDir, bool flexibleFetch = true)
         .Select(fp => fp.FullName)
         .ToArray();
 
-    Console.WriteLine($"Select Among Files Available inputs >> [0 -> {filesAvailable.Length - 1}]:");
+    Console.WriteLine($"Select Among The Available Training Files >> [0 -> {filesAvailable.Length - 1}]:");
     Console.WriteLine("------------------------------------------------------------------------------");
     Console.WriteLine(Environment.NewLine);
 
     for (var fileIndex = 0; fileIndex < filesAvailable.Length; fileIndex++)
         Console.WriteLine($"{fileIndex}. {filesAvailable[fileIndex].Split('\\').Last()}");
-    
-    Console.WriteLine(Environment.NewLine);
 
     if (!flexibleFetch)
     {
