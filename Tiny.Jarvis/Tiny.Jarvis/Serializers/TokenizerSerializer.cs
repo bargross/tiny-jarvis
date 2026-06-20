@@ -2,7 +2,6 @@
 using System.Text.Json.Serialization;
 using Tiny.Jarvis.Enums;
 using Tiny.Jarvis.Tokenization;
-using Tiny.Jarvis.Training.Orchestrators;
 using Tiny.Jarvis.Training.Tokenization;
 
 namespace Tiny.Jarvis.Training.Serializers
@@ -48,10 +47,10 @@ namespace Tiny.Jarvis.Training.Serializers
             switch(strategy)
             {
                 case TokenizerStrategy.Chars:
-                    return TokenizerGenerator.GetTokenizer<string>(TokenizerStrategy.Chars, ["abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 .,|!?-'\""]) as ITokenizer<TVocabulary>;
+                    return new CharacterTokenizer(data.IdentifierToToken as Dictionary<string, int>) as ITokenizer<TVocabulary>;
                 case TokenizerStrategy.WordPiece:
                 {
-                        var identifierToToken = data.IdentifierToToken as Dictionary<string, int>;
+                    var identifierToToken = data.IdentifierToToken as Dictionary<string, int>;
 
                     return new WordPieceTokenizer(identifierToToken, data.UnknownTokenId, data.BosTokenId, data.EosTokenId) as ITokenizer<TVocabulary>;
                 }
@@ -81,7 +80,6 @@ namespace Tiny.Jarvis.Training.Serializers
             }
 
             return null;
-            //throw new ArgumentException("tokenizer data not found."); // might be best to let it flow so it creates a new one
         }
     }
 }

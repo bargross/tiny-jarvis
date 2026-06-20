@@ -24,7 +24,7 @@ namespace Tiny.Jarvis.Training.Orchestrators
                     TokenizerStrategy.Chars => new CharacterTokenizer(trainingDocuments.First()) as ITokenizer<TVocabulary>,
 
                     // limit the corpus for tokenizer trainer to 2500 for now, otherwise it takes too long to train
-                    TokenizerStrategy.ByteLevelBPE => new ByteLevelBPETokenizer(trainingDocuments.Take(1000), vocabularySize) as ITokenizer<TVocabulary>,
+                    TokenizerStrategy.ByteLevelBPE => new ByteLevelBPETokenizer(trainingDocuments.Take(2500), vocabularySize) as ITokenizer<TVocabulary>,
                     _ => throw new ArgumentOutOfRangeException(nameof(strategy), strategy, null)
                 };
             }

@@ -18,6 +18,16 @@ public class CharacterTokenizer : ITokenizer<string>
     public List<(string Left, string Right)>? MergeRules => null;
     public Dictionary<string, double>? TokenLogProbabilities => null;
 
+    public CharacterTokenizer(Dictionary<string, int> identifierToToken)
+    {
+        _identifierToToken = identifierToToken;
+        _tokenToIdentifier = identifierToToken.ToDictionary(x => x.Value, x => x.Key);
+        BOS = _identifierToToken[_bosToken];
+        EOS = _identifierToToken[_eosToken];
+        _unknownTokenIdentifier = _identifierToToken[_unknownToken];
+        VocabSize = identifierToToken.Count;
+    }
+
     // Constructor using an explicit alphabet string (no training on docs)
     public CharacterTokenizer(string allowedChars)
     {
@@ -33,6 +43,35 @@ public class CharacterTokenizer : ITokenizer<string>
 
         // Build string→ID map
         var identifierToToken = allTokens.Select((val, idx) => (val, idx)).ToDictionary(x => x.val, x => x.idx);
+
+        // Build reverse ID→string map
+        var tokenToIdentifier = identifierToToken.ToDictionary(x => x.Value, x => x.Key);
+
+        _identifierToToken = identifierToToken;
+        _tokenToIdentifier = tokenToIdentifier;
+
+        _unknownTokenIdentifier = _identifierToToken[_unknownToken];
+        BOS = _identifierToToken[_bosToken];
+        EOS = _identifierToToken[_eosToken];
+
+        VocabSize = _identifierToToken.Count;
+    }
+
+    public CharacterTokenizer(IEnumerable<string> trainingDocs)
+    {
+        var uniqueChars = trainingDocs.SelectMany(x => x.ToCharArray())
+            .Distinct()
+            .OrderBy(c => c)
+            .Select(c => c.ToString())
+            .ToList();
+
+        var allTokens = new List<string> { _unknownToken, _bosToken, _eosToken };
+        allTokens.AddRange(uniqueChars);
+
+        // Build string→ID map
+        var identifierToToken = allTokens
+            .Select((val, idx) => (val, idx))
+            .ToDictionary(x => x.val, x => x.idx);
 
         // Build reverse ID→string map
         var tokenToIdentifier = identifierToToken.ToDictionary(x => x.Value, x => x.Key);
