@@ -1,4 +1,6 @@
-﻿namespace Tiny.Jarvis.Tokenization
+﻿using Tiny.Jarvis.Enums;
+
+namespace Tiny.Jarvis.Tokenization
 {
     public interface ITokenizer<TIdentifier>
     {
@@ -10,6 +12,7 @@
         int UnknownTokenId { get; }
         int BOS { get; }
         int EOS { get; }
+        TokenizerStrategy Type { get; }
 
         IReadOnlyList<int> Encode(string text);
         string Decode(IReadOnlyList<int> identifiers);

@@ -1,3 +1,5 @@
+using Tiny.Jarvis.Enums;
+
 namespace Tiny.Jarvis.Tokenization;
 
 public class CharacterTokenizer : ITokenizer<string>
@@ -17,6 +19,7 @@ public class CharacterTokenizer : ITokenizer<string>
 
     public List<(string Left, string Right)>? MergeRules => null;
     public Dictionary<string, double>? TokenLogProbabilities => null;
+    public TokenizerStrategy Type => TokenizerStrategy.Chars;
 
     // Constructor using an explicit alphabet string (no training on docs)
     public CharacterTokenizer(string allowedChars)

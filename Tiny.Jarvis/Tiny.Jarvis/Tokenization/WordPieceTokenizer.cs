@@ -1,4 +1,5 @@
-﻿using Tiny.Jarvis.Tokenization.Trainers;
+﻿using Tiny.Jarvis.Enums;
+using Tiny.Jarvis.Tokenization.Trainers;
 using Tiny.Jarvis.Training.Util;
 
 namespace Tiny.Jarvis.Tokenization
@@ -23,6 +24,7 @@ namespace Tiny.Jarvis.Tokenization
         public int UnknownTokenId => _unknownTokenIdentifier;
         public List<(string Left, string Right)>? MergeRules => null;
         public Dictionary<string, double>? TokenLogProbabilities => null;
+        public TokenizerStrategy Type => TokenizerStrategy.WordPiece;
 
 
         public WordPieceTokenizer(IEnumerable<string> docs, int targetVocabularySize = 20)

@@ -1,4 +1,5 @@
 ﻿using System.Text;
+using Tiny.Jarvis.Enums;
 using Tiny.Jarvis.Tokenization;
 using Tiny.Jarvis.Training.Comparers;
 using Tiny.Jarvis.Training.Tokenization.Trainers;
@@ -28,6 +29,7 @@ namespace Tiny.Jarvis.Training.Tokenization
         public Dictionary<byte[], double>? TokenLogProbabilities => null;
         public Dictionary<byte[], int> IdentifierToToken => _identifierToToken;
         public int UnknownTokenId => _unknownTokenIdentifier;
+        public TokenizerStrategy Type => TokenizerStrategy.ByteLevelBPE;
 
         /// <summary>
         /// Constructor – trains the tokenizer on the given corpus.

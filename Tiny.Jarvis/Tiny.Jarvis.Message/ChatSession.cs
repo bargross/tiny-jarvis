@@ -75,14 +75,14 @@ namespace Tiny.Jarvis.Message
                 var tempBestChromosome = tempAndTopPGA.Run();
 
                 // Decode the best parameters
-                var bestTopK = topKBestChromosome.Min() + topKBestChromosome.Max() / 2;
-                var bestTemperature = tempBestChromosome[1];
-                var bestTopP = tempBestChromosome[2]; // still double
+                //var bestTopK = topKBestChromosome.Min() + topKBestChromosome.Max() / 2;
+                //var bestTemperature = tempBestChromosome[1];
+                //var bestTopP = tempBestChromosome[2]; // still double
 
                 // manually set
-                //var bestTopK = 20;
-                //var bestTemperature = 0.7;
-                //var bestTopP = 0.8;
+                var bestTopK = 20;
+                var bestTemperature = 0.6;
+                var bestTopP = 0.8;
 
                 var responseTokens = model.Generate(tokens, maxNewTokens: 100, temperature: bestTemperature, topK: bestTopK, topP: bestTopP);
 

@@ -201,19 +201,32 @@ public static class TinyJarvisModelTrainer
                 Console.WriteLine($"[milestone], avg. loss: {avgLoss:F4} (was {lastMilestoneLoss:F4})");
                 Console.WriteLine(Environment.NewLine);
 
-                lastMilestoneLoss = avgLoss;
-            }
-
-            // save the configuration every 5000 steps
-            if ((step + 1) % 5000 == 0)
-            {
+                // save every 1000 steps instead of 5000, to start/stop when needed.
+                Console.WriteLine("Training stopped...");
+                Console.WriteLine("Saving progress...");
                 ModelSerializer.Save(model, hyperParams);
 
                 if (tokenizerContainer.IsLeft) TokenizerSerializer.Save(tokenizerContainer.Left, hyperParams.SaveTokenizerFile);
                 else TokenizerSerializer.Save(tokenizerContainer.Right, hyperParams.SaveTokenizerFile);
 
                 OptimizerSerializer.Save(optimizer, hyperParams.SaveOptimizerFile);
+
+                Console.WriteLine($"Model with tokenizer strategy {hyperParams.TokenizerStrategy.ToString()} & optimizer strategy {hyperParams.OptimizerStrategy.ToString()} saved.");
+                Console.WriteLine("Training continues...");
+                Console.WriteLine(Environment.NewLine);
+
+                lastMilestoneLoss = avgLoss;
             }
+
+            //if ((step + 1) % 2000 == 0) // save every 2000 steps instead of 5000, to start/stop when needed.
+            //{
+            //    ModelSerializer.Save(model, hyperParams);
+
+            //    if (tokenizerContainer.IsLeft) TokenizerSerializer.Save(tokenizerContainer.Left, hyperParams.SaveTokenizerFile);
+            //    else TokenizerSerializer.Save(tokenizerContainer.Right, hyperParams.SaveTokenizerFile);
+
+            //    OptimizerSerializer.Save(optimizer, hyperParams.SaveOptimizerFile);
+            //}
 
             // For debug during Training, to ensure the model is generating more coherent sentences, so basically to know its learning.
             if ((step + 1) % 500 == 0)
@@ -239,32 +252,33 @@ public static class TinyJarvisModelTrainer
 
         watch.Stop();
 
-        if (hyperParams.LoadedFromPreviousRun && !areLoadedFilePathsNotPopulated)
-        {
-            // Replace the existing AddToFileName with this:
-            string AddToFileName(string original, string newPostFix)
-            {
-                var dir = Path.GetDirectoryName(original) ?? "";
-                var nameWithoutExt = Path.GetFileNameWithoutExtension(original);
-                var ext = Path.GetExtension(original);
-
-                return Path.Combine(dir, $"{nameWithoutExt}-{newPostFix}{ext}");
-            }
-
-            var modelFileOld = hyperParams.LoadModelFile;
-            var optimizerFileOld = hyperParams.LoadOptimizerFile;
-            var tokenizerFileOld = hyperParams.LoadTokenizerFile;
-
-            var postFix = "completed";
-            hyperParams.SaveModelFile = AddToFileName(modelFileOld, postFix);
-            hyperParams.SaveOptimizerFile = AddToFileName(optimizerFileOld, postFix);
-            hyperParams.SaveTokenizerFile = AddToFileName(tokenizerFileOld, postFix);
-        }
-
+        // if the user requests to save the complete model, replace the loaded files with new names and replace them after
         Console.WriteLine("Training complete - Save model? (y/n)");
         var saveResponse = Console.ReadLine();
         if (saveResponse.ToLower() == "y")
         {
+            if (hyperParams.LoadedFromPreviousRun && !areLoadedFilePathsNotPopulated)
+            {
+                // Replace the existing AddToFileName with this:
+                string AddToFileName(string original, string newPostFix)
+                {
+                    var dir = Path.GetDirectoryName(original) ?? "";
+                    var nameWithoutExt = Path.GetFileNameWithoutExtension(original);
+                    var ext = Path.GetExtension(original);
+
+                    return Path.Combine(dir, $"{nameWithoutExt}-{newPostFix}{ext}");
+                }
+
+                var modelFileOld = hyperParams.LoadModelFile;
+                var optimizerFileOld = hyperParams.LoadOptimizerFile;
+                var tokenizerFileOld = hyperParams.LoadTokenizerFile;
+
+                var postFix = "completed";
+                hyperParams.SaveModelFile = AddToFileName(modelFileOld, postFix);
+                hyperParams.SaveOptimizerFile = AddToFileName(optimizerFileOld, postFix);
+                hyperParams.SaveTokenizerFile = AddToFileName(tokenizerFileOld, postFix);
+            }
+
             ModelSerializer.Save(model, hyperParams);
 
             if (tokenizerContainer.IsLeft) TokenizerSerializer.Save(tokenizerContainer.Left, hyperParams.SaveTokenizerFile);

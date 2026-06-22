@@ -9,8 +9,14 @@ namespace Tiny.Jarvis.Training.Serializers
 {
     public static class TokenizerSerializer
     {
-        private class TokenizerData<TVocabulary>
+        private class TokenizerDataType
         {
+            [JsonConverter(typeof(JsonStringEnumConverter))]
+            public TokenizerStrategy Type { get; set; }
+        }
+
+        private class TokenizerData<TVocabulary> : TokenizerDataType
+        { 
             public Dictionary<TVocabulary, double>? TokenLogProbabilities { get; set; }
             public Dictionary<TVocabulary, int>? IdentifierToToken { get; set; }
             public List<(TVocabulary Left, TVocabulary Right)>? MergeRules { get; set; }
@@ -26,6 +32,7 @@ namespace Tiny.Jarvis.Training.Serializers
         {
             var data = new TokenizerData<TVocabulary>
             {
+                Type = tokenizer.Type,
                 IdentifierToToken = tokenizer.IdentifierToToken, // need a public getter, or make internal
                 UnknownTokenId = tokenizer.UnknownTokenId,
                 BosTokenId = tokenizer.BOS,
@@ -43,9 +50,13 @@ namespace Tiny.Jarvis.Training.Serializers
         public static ITokenizer<TVocabulary> Load<TVocabulary>(string filePath, TokenizerStrategy strategy)
         {
             var json = File.ReadAllText(filePath);
+
             var data = JsonSerializer.Deserialize<TokenizerData<TVocabulary>>(json);
 
-            switch(strategy)
+            if (data.Type != strategy)
+                throw new Exception($"Tokenizer requested {strategy.ToString()} and deserialized tokenizer {data.Type.ToString()} types do not match.");
+
+            switch(data.Type)
             {
                 case TokenizerStrategy.Chars:
                     return TokenizerGenerator.GetTokenizer<string>(TokenizerStrategy.Chars, ["abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 .,|!?-'\""]) as ITokenizer<TVocabulary>;
@@ -80,8 +91,7 @@ namespace Tiny.Jarvis.Training.Serializers
                 }
             }
 
-            return null;
-            //throw new ArgumentException("tokenizer data not found."); // might be best to let it flow so it creates a new one
+            return null;  // might be best to let it flow so it creates a new one
         }
     }
 }

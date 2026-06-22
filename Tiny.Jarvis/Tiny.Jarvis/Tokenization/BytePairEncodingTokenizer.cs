@@ -1,4 +1,5 @@
-﻿using Tiny.Jarvis.Tokenization.Trainers;
+﻿using Tiny.Jarvis.Enums;
+using Tiny.Jarvis.Tokenization.Trainers;
 
 namespace Tiny.Jarvis.Tokenization
 {
@@ -21,6 +22,7 @@ namespace Tiny.Jarvis.Tokenization
 
         public List<(string Left, string Right)>? MergeRules => _mergeRules;
         public Dictionary<string, double>? TokenLogProbabilities => null;
+        public TokenizerStrategy Type => TokenizerStrategy.BytePair;
 
         public BytePairEncodingTokenizer(IEnumerable<string> trainingDocuments, int unknownTokenIdentifier = -1, int numberOfMerges = 15)
         {

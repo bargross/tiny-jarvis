@@ -33,17 +33,18 @@ void BeginChat()
     EnsureWritePermissionsOnWindows(pathToTokenizerSavedRuns);
     EnsureWritePermissionsOnWindows(pathToOptimizerSavedRuns);
 
-    var (isNewModel, specialName) = GetModelOptionalSpecialName();
+    var tokenizationStrategy = TokenizerStrategy.ByteLevelBPE;
+    var (isNewModel, specialName) = GetNewModelAndlSpecialName(tokenizationStrategy);
     
     var hyperParams = new TinyJarvisHyperParameters
     {
-        TokenizerStrategy = TokenizerStrategy.BytePair,
+        TokenizerStrategy = tokenizationStrategy,
         OptimizerStrategy = OptimizerStrategy.Adam,
         EmbeddingSize = 64,
         MaxSequenceLength = 42,
-        LearningRate = 0.0003,
-        NumOfMerges = 200,
-        VocabularySize = 600,
+        LearningRate = 0.0001, // 0.0003 or higher drops coherence in responsenses
+        NumOfMerges = 500,
+        VocabularySize = 1000,
         MaxNumberOfSteps = 10000,
         MaxGradNorm = 1.0,
         SaveModelFile = GetUniqueFileNameWithTimestamp(pathToModelSavedRuns, "model-run", "bin", specialName, fileStaveTimestamp),
@@ -121,23 +122,17 @@ void EnsureWritePermissionsOnWindows(string directoryPath)
     }
 }
 
-(bool isNewModel, string specialName) GetModelOptionalSpecialName()
+(bool isNewModel, string specialName) GetNewModelAndlSpecialName(TokenizerStrategy type)
 {
     Console.WriteLine("New model?");
     var response = Console.ReadLine();
     Console.WriteLine(Environment.NewLine);
 
-    var specialName = "";
-    var isNewModel = response.ToLower() == "y";
-    if (isNewModel)
-    {
-        Console.Write("Special model name: ");
-        specialName = Console.ReadLine();
-        Console.WriteLine(Environment.NewLine);
+    var specialName = type.ToString();
 
-        if (string.IsNullOrWhiteSpace(specialName))
-            return GetModelOptionalSpecialName();   
-    }
+    specialName = $"{specialName.First().ToString().ToUpper()}{specialName.Substring(1, specialName.Length - 1)}";
+    
+    var isNewModel = response?.ToLower() == "y";
 
     return (isNewModel, specialName);
 }

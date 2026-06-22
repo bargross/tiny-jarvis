@@ -12,9 +12,15 @@
     <File Path="Assets/tiny-shakesphere-training.txt" />
   </Folder>
   <Folder Name="/Saves/" />
-  <Folder Name="/Saves/models/" />
-  <Folder Name="/Saves/optimizers/" />
-  <Folder Name="/Saves/tokenizers/" />
+  <Folder Name="/Saves/models/">
+    <File Path="SavedRuns/models/model-run_2026-06-20_23-48-03_byte-level-first.bin" />
+  </Folder>
+  <Folder Name="/Saves/optimizers/">
+    <File Path="SavedRuns/optimizers/optimizer-run_2026-06-20_23-48-03_byte-level-first.bin" />
+  </Folder>
+  <Folder Name="/Saves/tokenizers/">
+    <File Path="SavedRuns/tokenizers/tokenizer-run_2026-06-20_23-48-03_byte-level-first.json" />
+  </Folder>
   <Project Path="Tiny.Jarvis.Genetic/Tiny.Jarvis.Genetic.csproj" Id="39a894b5-d015-4824-925e-b12dd351c9cf" />
   <Project Path="Tiny.Jarvis.Main/Tiny.Jarvis.Main.csproj" Id="c4d79b83-c433-47de-b432-8e54964e6a0a" />
   <Project Path="Tiny.Jarvis.Message/Tiny.Jarvis.Message.csproj" Id="dd4cbe3b-342a-4313-bc35-f645022c4144" />

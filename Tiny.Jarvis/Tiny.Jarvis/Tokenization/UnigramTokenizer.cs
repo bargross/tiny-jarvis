@@ -1,4 +1,6 @@
-﻿using Tiny.Jarvis.Tokenization.Trainers;
+﻿using System.Text;
+using Tiny.Jarvis.Enums;
+using Tiny.Jarvis.Tokenization.Trainers;
 using Tiny.Jarvis.Training.Util;
 
 namespace Tiny.Jarvis.Tokenization
@@ -24,6 +26,7 @@ namespace Tiny.Jarvis.Tokenization
 
         public List<(string Left, string Right)>? MergeRules => null;
         public Dictionary<string, double>? TokenLogProbabilities => TokenLogProbabilities;
+        public TokenizerStrategy Type => TokenizerStrategy.Unigram;
 
         public UnigramTokenizer(IEnumerable<string> docs, int targetVocabularySize = 20)
         {
@@ -75,6 +78,23 @@ namespace Tiny.Jarvis.Tokenization
             BOS = bOS;
             EOS = eOS;
         }
+
+        //public UnigramTokenizer(Dictionary<byte[], double> tokenLogProbabilities, Dictionary<byte[], int> identifierToToken, int unknownTokenIdentifier, int bOS, int eOS)
+        //{
+        //    string ConvertToString(byte[] vocabularyValue) => Encoding.UTF8.GetString(vocabularyValue);
+        
+        //    _tokenLogProbabilities = tokenLogProbabilities
+        //        .Select(kvp => new KeyValuePair<string, double>(ConvertToString(kvp.Key), kvp.Value))
+        //        .ToDictionary(x => x.Key, x => x.Value);
+
+        //    var identifierAsStringToToken = identifierToToken.Select(kvp => new KeyValuePair<string, int>(ConvertToString(kvp.Key), kvp.Value)).ToDictionary(x => x.Key, x => x.Value);
+        //    _tokenToIdentifier = identifierAsStringToToken.ToDictionary(x => x.Value, x => x.Key);
+        //    _identifierToToken = identifierAsStringToToken;
+        //    _unknownTokenIdentifier = unknownTokenIdentifier;
+        //    _vocabularySize = _tokenLogProbabilities.Count;
+        //    BOS = bOS;
+        //    EOS = eOS;
+        //}
 
         public IReadOnlyList<int> Encode(string text)
         {
